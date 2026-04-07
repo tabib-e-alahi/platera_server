@@ -1,0 +1,12 @@
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum userAccountStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}

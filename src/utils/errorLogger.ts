@@ -1,3 +1,5 @@
+import envConfig from "../config";
+
 interface SlackErrorPayload {
   timestamp: string;
   errorType: string;
@@ -13,8 +15,7 @@ interface SlackErrorPayload {
  */
 export const sendToSlack = async (payload: SlackErrorPayload): Promise<void> => {
   try {
-    const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
-
+    const slackWebhookUrl = envConfig.SLACK_WEBHOOK_URL;
     if (!slackWebhookUrl) {
       console.warn('SLACK_WEBHOOK_URL is not configured');
       return;

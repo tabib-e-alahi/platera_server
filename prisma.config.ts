@@ -4,7 +4,7 @@ import envConfig from './src/config/index';
 
 
 export default defineConfig({
-  schema: "prisma/schema/schema.prisma",
+  schema: "prisma/schema",
   migrations: {
     path: "prisma/migrations",
   },
