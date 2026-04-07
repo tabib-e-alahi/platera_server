@@ -15,7 +15,21 @@ const registerCustomer = async (req: Request, res: Response, next: NextFunction)
   }
 }
 
+const loginUser = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const payload = req.body;
+
+    const result = await AuthService.loginUser(payload);
+
+    return sendResponse(res, { httpStatusCode: 200, success: true, message: "Login successful", data: result })
+
+  } catch (error) {
+    next(error)
+  }
+}
+
 
 export const AuthControler = {
-  registerCustomer
+  registerCustomer,
+  loginUser
 }

@@ -1,3 +1,4 @@
+import { userAccountStatus } from "../../../generated/prisma/enums";
 import { auth } from "../../lib/auth";
 
 interface ICustomerRegisterData {
@@ -23,6 +24,30 @@ const registerCustomer = async (payload: ICustomerRegisterData) => {
   return customerData;
 }
 
+interface ILoginData {
+  email: string
+  password: string
+}
+
+const loginUser = async (payload: ILoginData) => {
+  const { email, password } = payload;
+
+  const loginData = await auth.api.signInEmail({
+    body: { email, password },
+  });
+
+  if (loginData.user.status === userAccountStatus.SUSPENDED) {
+    throw new Error("Your account has been suspended. Please contact support for assistance.")
+  }
+
+  if (loginData.user.status === userAccountStatus.DELETED) {
+    throw new Error("Your account has been deleted. Please contact support for assistance.")
+  }
+
+  return loginData;
+};
+
 export const AuthService = {
   registerCustomer,
+  loginUser
 }
