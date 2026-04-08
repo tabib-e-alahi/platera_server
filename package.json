@@ -5,7 +5,7 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
-    "dev": "npx tsx src/server.ts",
+    "dev": "npx tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "studio": "prisma studio",
@@ -25,6 +25,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
+    "http-status": "^2.1.0",
     "pg": "^8.20.0",
     "zod": "^4.3.6"
   },

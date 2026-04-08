@@ -1,0 +1,16 @@
+model Address {
+  id            String    @id @default(uuid(7))
+  city          String
+  street        String
+  houseNumber   String
+  apartment     String?
+  postalCode    String
+  label         HouseType @default(HOME)
+  isDefault     Boolean   @default(false)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([city])
+  @@index([postalCode])
+}

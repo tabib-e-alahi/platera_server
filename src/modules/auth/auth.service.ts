@@ -1,5 +1,6 @@
-import { userAccountStatus } from "../../../generated/prisma/enums";
+import { userAccountStatus, UserRole } from "../../../generated/prisma/enums";
 import { auth } from "../../lib/auth";
+import { prisma } from "../../lib/prisma";
 
 interface ICustomerRegisterData {
   name: string
@@ -9,19 +10,20 @@ interface ICustomerRegisterData {
 
 const registerCustomer = async (payload: ICustomerRegisterData) => {
   const { name, email, password } = payload
-  const customerData = await auth.api.signUpEmail({
+
+  const result = await auth.api.signUpEmail({
     body: {
       name,
       email,
-      password
+      password,
     },
   });
 
-  if (!customerData.user) {
-    throw new Error("Failed to register account.")
+  if (!result.user) {
+    throw new Error("Failed to register account.");
   }
 
-  return customerData;
+  return result.user;
 }
 
 interface ILoginData {

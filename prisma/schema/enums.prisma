@@ -8,5 +8,9 @@ enum UserRole {
 enum userAccountStatus {
   ACTIVE
   SUSPENDED
-  DELETED
+}
+
+enum HouseType {
+  HOME
+  OFFICE
 }
