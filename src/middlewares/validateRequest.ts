@@ -17,4 +17,5 @@ const validateRequest = (schema: z.ZodTypeAny) => {
   };
 };
 
+export { validateRequest };
 export default validateRequest;

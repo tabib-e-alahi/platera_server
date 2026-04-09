@@ -54,3 +54,9 @@ export class InternalServerError extends AppError {
     super(message, 500, false);
   }
 }
+
+export class UnprocessableError extends AppError {
+  constructor(message: string) {
+    super(message, 422);
+  }
+}

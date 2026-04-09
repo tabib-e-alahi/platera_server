@@ -15,6 +15,7 @@ model User {
   sessions           Session[]
   accounts           Account[]
   // customer           Customer?
+  providerProfile    ProviderProfile?
 
   @@unique([email])
   @@map("user")

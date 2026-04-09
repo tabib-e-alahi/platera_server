@@ -1,0 +1,44 @@
+// src/modules/auth/auth.validation.ts
+
+import { z } from "zod";
+
+export const customerRegisterSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required.")
+    .min(2, "Name must be at least 2 characters.")
+    .max(50, "Name cannot exceed 50 characters."),
+  email: z.email("Please provide a valid email address."),
+  password: z
+    .string()
+    .min(1, "Password is required.")
+    .min(8, "Password must be at least 8 characters.")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+      "Password must contain uppercase, lowercase, number and special character."
+    ),
+});
+
+export const providerRegisterSchema = z.object({
+  name: z
+    .string()
+    .min(1, "Name is required.")
+    .min(2, "Name must be at least 2 characters.")
+    .max(50, "Name cannot exceed 50 characters."),
+  email: z.email("Please provide a valid email address."),
+  password: z
+    .string()
+    .min(1, "Password is required.")
+    .min(8, "Password must be at least 8 characters.")
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])/,
+      "Password must contain uppercase, lowercase, number and special character."
+    ),
+});
+
+export const loginSchema = z.object({
+  email: z.email("Please provide a valid email address."),
+  password: z
+    .string()
+    .min(1, "Password is required."),
+});

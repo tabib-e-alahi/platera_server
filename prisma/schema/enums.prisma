@@ -14,3 +14,18 @@ enum HouseType {
   HOME
   OFFICE
 }
+
+
+
+enum BusinessCategory {
+  RESTAURANT
+  SHOP
+  HOME_KITCHEN
+  STREET_FOOD
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}

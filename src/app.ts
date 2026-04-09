@@ -3,19 +3,27 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import globalErrorHandler from './middlewares/globalErrorHandler.js';
 import notFoundHandler from './middlewares/notFoundHandler.js';
+
 import { IndexRoutes } from './routes/index.js';
+import { toNodeHandler } from 'better-auth/node';
+import { auth } from './lib/auth';
 
 const app: Application = express();
 
+app.use(cors({
+  origin: "*", // Allow all origins for testing; in production, specify your frontend URL
+  credentials: true, // Allow cookies to be sent in cross-origin requests
+}));
+
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
+app.use(express.json());
+
 // Enable URL-encoded form data parsing
 app.use(express.urlencoded({ extended: true }));
+
 // parsers
-app.use(express.json());
-// app.use(cors({
-//   origin: "*", // Allow all origins for testing; in production, specify your frontend URL
-//   credentials: true, // Allow cookies to be sent in cross-origin requests
-// }));
-// app.use(cookieParser());
+app.use(cookieParser());
 
 // application routes
 app.use("/api/v1", IndexRoutes);

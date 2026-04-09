@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { userAccountStatus, UserRole } from "../../generated/prisma/enums";
+import envConfig from "../config";
 
 export const auth = betterAuth({
     database: prismaAdapter(prisma, {
@@ -49,9 +50,36 @@ export const auth = betterAuth({
         }
     },
 
-    // trustedOrigins: [envConfig.BETTER_AUTH_URL || "http://localhost:5000"],
+    trustedOrigins: [
+    envConfig.frontend_local_host,
+    "http://localhost:5000",  // allow Postman requests
+    "http://localhost:3000",  // frontend dev server
+  ],
 
     // advanced: {
     //     disableCSRFCheck: true, // Disable CSRF check for testing purposes. In production, you should handle CSRF properly.
     // }
+    // src/lib/auth.ts
+
+    databaseHooks: {
+        user: {
+            create: {
+                before: async (user, context) => {
+                    const intendedRole =
+                        context?.headers?.get("x-intended-role") || "CUSTOMER";
+
+                    return {
+                        data: {
+                            ...user,
+                            role: intendedRole,
+                        },
+                    };
+                },
+            },
+            
+        },
+    },
 });
+
+export type AuthUser = typeof auth.$Infer.Session.user;
+export type AuthSession = typeof auth.$Infer.Session.session;
