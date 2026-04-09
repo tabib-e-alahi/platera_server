@@ -16,6 +16,7 @@ import {
 import { IProviderUploadedImages } from "../../utils/extractFiles";
 import { deleteFromCloudinary, deleteMultipleFromCloudinary } from "../../utils/claudinary";
 import { Prisma } from "../../../generated/prisma/client";
+import { sendAdminApprovalRequestEmail } from "../../utils/emailTemplates.utils";
 
 
 // ─── Get My Profile ───────────────────────────────────────────────────────────
@@ -194,10 +195,6 @@ const updateProviderProfile = async (
 
   const shouldResetApproval = profile.approvalStatus === "APPROVED";
 
-  // do not type this as Prisma.ProviderProfileUpdateInput
-  // let TypeScript infer it — Prisma's update input is too strict
-  // under exactOptionalPropertyTypes when fields are conditionally included
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateData: Record<string, any> = {};
 
   // ─── text fields ─────────────────────────────────────────────
@@ -289,7 +286,7 @@ const updateProviderProfile = async (
 
   // ─── approval reset ───────────────────────────────────────────
   if (shouldResetApproval) {
-    updateData.approvalStatus = "PENDING";
+    updateData.approvalStatus = "DRAFT";
     updateData.rejectionReason = null;
     updateData.reviewedBy = null;
     updateData.reviewedAt = null;
@@ -332,8 +329,8 @@ const deleteProviderImage = async (
     case "nidImageBack": {
       const existingNids: string[] = profile.nidImageFront_and_BackURL
         ? (JSON.parse(
-            profile.nidImageFront_and_BackURL
-          ) as string[])
+          profile.nidImageFront_and_BackURL
+        ) as string[])
         : [];
 
       const index = imageType === "nidImageFront" ? 0 : 1;
@@ -407,127 +404,146 @@ const deleteProviderImage = async (
 
 // ─── Request Approval ─────────────────────────────────────────────────────────
 
-// const requestApproval = async (userId: string) => {
-//   const user = await prisma.user.findUnique({
-//     where: { id: userId },
-//     select: {
-//       id: true,
-//       name: true,
-//       email: true,
-//       status: true,
-//       isDeleted: true,
-//       emailVerified: true,
-//     },
-//   });
+const requestApproval = async (userId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      status: true,
+      isDeleted: true,
+      emailVerified: true,
+    },
+  });
 
-//   if (!user) throw new NotFoundError("User not found.");
-//   if (user.isDeleted) {
-//     throw new ForbiddenError("This account has been deleted.");
-//   }
-//   if (user.status === "SUSPENDED") {
-//     throw new ForbiddenError(
-//       "Your account is suspended. Please contact support."
-//     );
-//   }
-//   if (!user.emailVerified) {
-//     throw new ForbiddenError(
-//       "Please verify your email before requesting approval."
-//     );
-//   }
+  if (!user) throw new NotFoundError("User not found.");
 
-//   const profile = await prisma.providerProfile.findUnique({
-//     where: { userId },
-//     select: {
-//       id: true,
-//       approvalStatus: true,
-//       businessName: true,
-//       businessCategory: true,
-//       binNumber: true,
-//       nidImageFront_and_BackURL: true,
-//       businessMainGateURL: true,
-//     },
-//   });
+  if (user.isDeleted) {
+    throw new ForbiddenError("This account has been deleted.");
+  }
 
-//   if (!profile) {
-//     throw new NotFoundError(
-//       "Please complete your provider profile before requesting approval."
-//     );
-//   }
+  if (user.status === "SUSPENDED") {
+    throw new ForbiddenError(
+      "Your account is suspended. Please contact support."
+    );
+  }
 
-//   if (profile.approvalStatus === "APPROVED") {
-//     throw new ConflictError("Your profile is already approved.");
-//   }
+  if (!user.emailVerified) {
+    throw new ForbiddenError(
+      "Please verify your email before requesting approval."
+    );
+  }
 
-//   if (profile.approvalStatus === "PENDING") {
-//     throw new ConflictError(
-//       "Your approval request is already under review. Please wait."
-//     );
-//   }
+  const profile = await prisma.providerProfile.findUnique({
+    where: { userId },
+    select: {
+      id: true,
+      approvalStatus: true,
+      businessName: true,
+      businessCategory: true,
+      binNumber: true,
+      nidImageFront_and_BackURL: true,
+      businessMainGateURL: true,
+    },
+  });
 
-//   if (
-//     profile.businessCategory === "RESTAURANT" &&
-//     (!profile.binNumber || profile.binNumber.trim() === "")
-//   ) {
-//     throw new UnprocessableError(
-//       "BIN/Tax number is required for Restaurant category before requesting approval."
-//     );
-//   }
+  if (!profile) {
+    throw new NotFoundError(
+      "Please complete your provider profile before requesting approval."
+    );
+  }
 
-//   const nidUrls: string[] = profile.nidImageFront_and_BackURL
-//     ? (JSON.parse(profile.nidImageFront_and_BackURL) as string[])
-//     : [];
+  // only DRAFT and REJECTED can request approval
+  if (profile.approvalStatus === "APPROVED") {
+    throw new ConflictError(
+      "Your profile is already approved. No action needed."
+    );
+  }
 
-//   if (nidUrls.filter(Boolean).length < 2) {
-//     throw new UnprocessableError(
-//       "Both front and back NID images are required before requesting approval."
-//     );
-//   }
+  if (profile.approvalStatus === "PENDING") {
+    throw new ConflictError(
+      "Your approval request is already under review. Please wait for admin response."
+    );
+  }
 
-//   if (!profile.businessMainGateURL) {
-//     throw new UnprocessableError(
-//       "Business main gate image is required before requesting approval."
-//     );
-//   }
+  // profile.approvalStatus is DRAFT or REJECTED here — both allowed
 
-//   const updatedProfile = await prisma.providerProfile.update({
-//     where: { userId },
-//     data: {
-//       approvalStatus: "PENDING",
-//       rejectionReason: null,
-//       reviewedBy: null,
-//       reviewedAt: null,
-//     },
-//   });
+  // BIN check for restaurant
+  if (
+    profile.businessCategory === "RESTAURANT" &&
+    (!profile.binNumber || profile.binNumber.trim() === "")
+  ) {
+    throw new UnprocessableError(
+      "BIN/Tax number is required for Restaurant category before requesting approval."
+    );
+  }
 
-//   const admins = await prisma.user.findMany({
-//     where: {
-//       role: { in: ["ADMIN", "SUPER_ADMIN"] },
-//       status: "ACTIVE",
-//       isDeleted: false,
-//     },
-//     select: { email: true },
-//   });
+  // NID images check
+  const nidUrls: string[] = profile.nidImageFront_and_BackURL
+    ? (JSON.parse(profile.nidImageFront_and_BackURL) as string[])
+    : [];
 
-//   await Promise.all(
-//     admins.map((admin) =>
-//       sendEmail({
-//         to: admin.email,
-//         ...emailTemplates.adminProviderApprovalRequest(
-//           user.name,
-//           profile.businessName,
-//           profile.businessCategory
-//         ),
-//       })
-//     )
-//   );
+  if (nidUrls.filter(Boolean).length < 2) {
+    throw new UnprocessableError(
+      "Both front and back NID images are required before requesting approval."
+    );
+  }
 
-//   return updatedProfile;
-// };
+  // main gate image check
+  if (!profile.businessMainGateURL) {
+    throw new UnprocessableError(
+      "Business main gate image is required before requesting approval."
+    );
+  }
+
+  // set to PENDING and clear any previous rejection data
+  const updatedProfile = await prisma.providerProfile.update({
+    where: { userId },
+    data: {
+      approvalStatus: "PENDING",
+      rejectionReason: null,
+      reviewedBy: null,
+      reviewedAt: null,
+    },
+  });
+
+  //* for testing purposes, send email to a specific address instead of all admins
+  // sendAdminApprovalRequestEmail(
+  //   "etabib.alahi@gmail.com",
+  //   user.name,
+  //   profile.businessName,
+  //   profile.businessCategory
+  // )
+
+  // notify all active admins
+  const admins = await prisma.user.findMany({
+    where: {
+      role: { in: ["ADMIN", "SUPER_ADMIN"] },
+      status: "ACTIVE",
+      isDeleted: false,
+    },
+    select: { email: true },
+  });
+
+  await Promise.all(
+    admins.map((admin) =>
+      sendAdminApprovalRequestEmail(
+        admin.email,
+        user.name,
+        profile.businessName,
+        profile.businessCategory
+      )
+    )
+  );
+
+  return updatedProfile;
+};
 
 export const ProviderService = {
   getMyProfile,
   createProviderProfile,
   updateProviderProfile,
   deleteProviderImage,
-  // requestApproval,
+  requestApproval,
 };

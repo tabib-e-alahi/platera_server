@@ -40,10 +40,12 @@
     "ignoreDeprecations": "6.0"
   },
   "include": [
-    "src"
-  ], // which files to compile
+    "src/**/*"
+  ],
   "exclude": [
-    "node_modules", "dist", "generated"
+    "node_modules",
+    "dist",
+    "generated"
   ],
 }
 // {

@@ -107,29 +107,29 @@ const deleteImage = async (
   }
 };
 
-// const requestApproval = async (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ): Promise<void> => {
-//   try {
-//     const result = await ProviderService.requestApproval(req.user.id);
-//     sendResponse(res, {
-//       httpStatusCode: status.OK,
-//       success: true,
-//       message:
-//         "Approval request submitted. You will be notified once reviewed.",
-//       data: result,
-//     });
-//   } catch (error) {
-//     next(error);
-//   }
-// };
+const requestApproval = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await ProviderService.requestApproval(req.user.id);
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message:
+        "Approval request submitted. You will be notified within 2 to 3 business days.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const ProviderController = {
   getMyProfile,
   createProfile,
   updateProfile,
   deleteImage,
-  // requestApproval,
+  requestApproval,
 };

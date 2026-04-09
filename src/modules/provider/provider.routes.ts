@@ -48,11 +48,11 @@ router.delete(
   ProviderController.deleteImage
 );
 
-// router.post(
-//   "/profile/request-approval",
-//   authMiddleware(UserRole.PROVIDER),
-//   ProviderController.requestApproval
-// );
+router.post(
+  "/profile/request-approval",
+  authMiddleware(UserRole.PROVIDER),
+  ProviderController.requestApproval
+);
 
 // ─── Business routes — auth + providerGuard ───────────────────────────────────
 // only APPROVED providers reach here

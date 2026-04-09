@@ -23,7 +23,7 @@ model ProviderProfile {
   apartment        String?
   postalCode       String
 
-  approvalStatus   ApprovalStatus   @default(PENDING)
+  approvalStatus   ApprovalStatus   @default(DRAFT)
   rejectionReason  String?
   reviewedBy       String?
   reviewedAt       DateTime?

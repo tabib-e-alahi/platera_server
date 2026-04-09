@@ -25,6 +25,7 @@ enum BusinessCategory {
 }
 
 enum ApprovalStatus {
+  DRAFT
   PENDING
   APPROVED
   REJECTED
