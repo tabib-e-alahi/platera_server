@@ -26,9 +26,15 @@ declare global {
         createdAt: Date;
         updatedAt: Date;
       };
+      file?: Express.Multer.File;
+      files?:
+      | Express.Multer.File[]
+      | {
+        [fieldname: string]: Express.Multer.File[];
+      };
     }
   }
 }
 
-export {}; // this line is required — makes the file a module
-            // so the declare global block works correctly
+export { }; // this line is required — makes the file a module
+// so the declare global block works correctly

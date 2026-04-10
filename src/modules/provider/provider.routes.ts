@@ -1,5 +1,3 @@
-// src/modules/provider/provider.routes.ts
-
 import { Router } from "express";
 import { ProviderController } from "./provider.controller";
 import authMiddleware, { UserRole } from "../../middlewares/auth.middleware";
@@ -29,9 +27,9 @@ router.get(
 router.post(
   "/profile",
   authMiddleware(UserRole.PROVIDER),
-  uploadProviderImages,                          // 1. process files
-  validateRequest(createProviderProfileSchema),  // 2. validate text
-  ProviderController.createProfile               // 3. handle
+  uploadProviderImages,                        
+  validateRequest(createProviderProfileSchema),  
+  ProviderController.createProfile             
 );
 
 router.patch(

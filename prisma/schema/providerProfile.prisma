@@ -6,7 +6,7 @@ model ProviderProfile {
   businessName     String
   businessCategory BusinessCategory
   phone            String
-  businessEmail    String          @unique
+  businessEmail    String           @unique
   bio              String?
   imageURL         String?
 
@@ -32,7 +32,20 @@ model ProviderProfile {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  meals     Meal[]
+
+  // finance summary fields
+  totalOrdersCompleted Int       @default(0)
+  totalGrossRevenue    Decimal   @default(0) @db.Decimal(12, 2)
+  totalPlatformFee     Decimal   @default(0) @db.Decimal(12, 2)
+  totalProviderEarning Decimal   @default(0) @db.Decimal(12, 2)
+  currentPayableAmount Decimal   @default(0) @db.Decimal(12, 2)
+  lastPaymentAt        DateTime?
+
+  meals    Meal[]
+  reviews  Review[]
+  carts    Cart[]
+  orders   Order[]
+  payments Payment[]
 
   @@index([userId])
   @@index([city])

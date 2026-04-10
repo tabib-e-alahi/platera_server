@@ -14,8 +14,12 @@ model User {
   updatedAt          DateTime          @updatedAt
   sessions           Session[]
   accounts           Account[]
-  // customer           Customer?
   providerProfile    ProviderProfile?
+  reviews            Review[]
+  customerProfile    CustomerProfile?
+  cart               Cart?
+  orders             Order[]
+  payments           Payment[]
 
   @@unique([email])
   @@map("user")

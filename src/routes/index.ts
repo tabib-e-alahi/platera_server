@@ -12,7 +12,7 @@ const router = Router()
 
 router.use("/auth", AuthRoutes);
 router.use("/public", PublicRoutes);
-router.use("/meals", MealRoutes)
+router.use("/provider/meals", MealRoutes)
 router.use("/providers", ProviderRoutes)
 
 router.use("/admins", authMiddleware(UserRole.ADMIN, UserRole.SUPER_ADMIN), adminGuard, AdminRoutes)

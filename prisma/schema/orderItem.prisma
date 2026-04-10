@@ -1,0 +1,23 @@
+model OrderItem {
+  id            String    @id @default(uuid())
+  orderId       String
+  mealId        String?
+
+  mealName      String
+  mealSlug      String?
+  mealImageUrl  String?
+
+  quantity      Int
+  unitPrice     Decimal   @db.Decimal(12, 2)
+  totalPrice    Decimal   @db.Decimal(12, 2)
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  meal          Meal?     @relation(fields: [mealId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([mealId])
+  @@map("order_items")
+}

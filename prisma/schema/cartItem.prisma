@@ -1,0 +1,19 @@
+model CartItem {
+  id          String    @id @default(uuid())
+  cartId      String
+  mealId      String
+
+  quantity    Int       @default(1)
+  unitPrice   Decimal   @db.Decimal(12, 2)
+  totalPrice  Decimal   @db.Decimal(12, 2)
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  cart        Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  meal        Meal      @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, mealId])
+  @@index([mealId])
+  @@map("cart_items")
+}
