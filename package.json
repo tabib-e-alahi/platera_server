@@ -12,6 +12,7 @@
     "push": "prisma db push",
     "pull": "prisma db pull",
     "seed:admins": "tsx src/scripts/seedAdmins.ts",
+    "seed:categories": "tsx src/scripts/seedCategories.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

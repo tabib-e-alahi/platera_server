@@ -1,0 +1,17 @@
+-- AlterEnum
+-- This migration adds more than one value to an enum.
+-- With PostgreSQL versions 11 and earlier, this is not possible
+-- in a single migration. This can be worked around by creating
+-- multiple migrations, each migration adding only one value to
+-- the enum.
+
+
+ALTER TYPE "DietaryPreference" ADD VALUE 'ORGANIC';
+ALTER TYPE "DietaryPreference" ADD VALUE 'LOW_CARB';
+ALTER TYPE "DietaryPreference" ADD VALUE 'KETO';
+ALTER TYPE "DietaryPreference" ADD VALUE 'PALEO';
+ALTER TYPE "DietaryPreference" ADD VALUE 'LOW_FAT';
+ALTER TYPE "DietaryPreference" ADD VALUE 'HIGH_PROTEIN';
+ALTER TYPE "DietaryPreference" ADD VALUE 'LOW_SUGAR';
+ALTER TYPE "DietaryPreference" ADD VALUE 'SUGAR_FREE';
+ALTER TYPE "DietaryPreference" ADD VALUE 'FODMAP_FREE';

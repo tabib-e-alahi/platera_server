@@ -4,7 +4,7 @@ model MealSize {
   id         String  @id @default(uuid())
   mealId     String
   meal       Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  name       String  // Small, Medium, Large
+  name       String // Small, Medium, Large
   extraPrice Int     @default(0)
   isDefault  Boolean @default(false)
 
@@ -16,7 +16,7 @@ model MealSpiceLevel {
   id        String  @id @default(uuid())
   mealId    String
   meal      Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  level     String  // Mild, Medium, Hot, Extra Hot
+  level     String // Mild, Medium, Hot, Extra Hot
   isDefault Boolean @default(false)
 
   @@index([mealId])
@@ -24,11 +24,11 @@ model MealSpiceLevel {
 }
 
 model MealAddOn {
-  id        String @id @default(uuid())
-  mealId    String
-  meal      Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
-  name      String // Extra Cheese, Extra Chicken
-  price     Int    // in BDT
+  id     String @id @default(uuid())
+  mealId String
+  meal   Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  name   String // Extra Cheese, Extra Chicken
+  price  Int // in BDT
 
   @@index([mealId])
   @@map("meal_add_on")

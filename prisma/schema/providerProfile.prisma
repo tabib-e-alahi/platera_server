@@ -1,7 +1,7 @@
 model ProviderProfile {
-  id               String           @id @default(uuid())
-  userId           String           @unique
-  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   businessName     String
   businessCategory BusinessCategory
@@ -9,32 +9,32 @@ model ProviderProfile {
   bio              String?
   imageURL         String?
 
-  binNumber        String?
-  binVerified      Boolean          @default(false)
+  binNumber   String?
+  binVerified Boolean @default(false)
 
   nidImageFront_and_BackURL String?
 
   businessMainGateURL String?
-  businessKitchenURL    String?
+  businessKitchenURL  String?
 
-  city             String
-  street           String
-  houseNumber      String
-  apartment        String?
-  postalCode       String
+  city        String
+  street      String
+  houseNumber String
+  apartment   String?
+  postalCode  String
 
-  approvalStatus   ApprovalStatus   @default(DRAFT)
-  rejectionReason  String?
-  reviewedBy       String?
-  reviewedAt       DateTime?
+  approvalStatus  ApprovalStatus @default(DRAFT)
+  rejectionReason String?
+  reviewedBy      String?
+  reviewedAt      DateTime?
 
-  isActive         Boolean          @default(true)
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  meals     Meal[]
 
   @@index([userId])
   @@index([city])
   @@index([approvalStatus])
   @@map("provider_profile")
 }
-

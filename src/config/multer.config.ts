@@ -60,3 +60,33 @@ export const providerProfileUpload = multer({
   fileFilter: imageFileFilter,
   limits: { fileSize: MAX_FILE_SIZE },
 });
+
+// src/config/multer.ts — add this alongside providerProfileUpload
+
+const mealImageStorage = new CloudinaryStorage({
+  cloudinary,
+  params: (req, file): object => {
+    let folder = "platera_foodhub/meals/misc";
+
+    if (file.fieldname === "mainImage") {
+      folder = "platera_foodhub/meals/main";
+    } else if (file.fieldname === "galleryImages") {
+      folder = "platera_foodhub/meals/gallery";
+    }
+
+    return {
+      folder,
+      allowed_formats: ALLOWED_FORMATS,
+      transformation: [
+        { quality: "auto", fetch_format: "auto" },
+        { width: 800, crop: "limit" }, // max 800px wide for meal images
+      ],
+    };
+  },
+});
+
+export const mealImageUpload = multer({
+  storage: mealImageStorage,
+  fileFilter: imageFileFilter,
+  limits: { fileSize: MAX_FILE_SIZE },
+});

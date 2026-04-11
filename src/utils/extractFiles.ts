@@ -45,3 +45,35 @@ export const extractProviderImages = (
 
   return result;
 };
+
+
+// src/utils/extractFiles.util.ts — add this interface and function
+
+export interface IMealUploadedImages {
+  mainImageURL?: string;
+  galleryImageURLs?: string[];
+}
+
+export const extractMealImages = (
+  req: Request
+): IMealUploadedImages => {
+  const files = req.files as
+    | Record<string, Express.Multer.File[]>
+    | undefined;
+
+  if (!files) return {};
+
+  const result: IMealUploadedImages = {};
+
+  if (files.mainImage?.[0]) {
+    result.mainImageURL = files.mainImage[0].path;
+  }
+
+  if (files.galleryImages && files.galleryImages.length > 0) {
+    result.galleryImageURLs = files.galleryImages.map(
+      (f) => f.path
+    );
+  }
+
+  return result;
+};
