@@ -1,11 +1,16 @@
 import { Router } from "express";
 import { AuthRoutes } from "../modules/auth/auth.route";
 import { ProviderRoutes } from "../modules/provider/provider.routes";
+import { AdminRoutes } from "../modules/admin/admin.routes";
+import authMiddleware, { UserRole } from "../middlewares/auth.middleware";
+import { adminGuard } from "../middlewares/adminGuard.middleware";
 
 
 const router = Router()
 
 router.use("/auth", AuthRoutes);
 router.use("/providers", ProviderRoutes)
+
+router.use("/admins", authMiddleware(UserRole.ADMIN, UserRole.SUPER_ADMIN), adminGuard, AdminRoutes)
 
 export const IndexRoutes: Router = router

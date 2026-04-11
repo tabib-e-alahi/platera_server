@@ -41,6 +41,7 @@ router.patch(
   ProviderController.updateProfile
 );
 
+
 router.delete(
   "/profile/image",
   authMiddleware(UserRole.PROVIDER),

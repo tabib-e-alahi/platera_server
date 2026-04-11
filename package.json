@@ -11,6 +11,7 @@
     "studio": "prisma studio",
     "push": "prisma db push",
     "pull": "prisma db pull",
+    "seed:admins": "tsx src/scripts/seedAdmins.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -31,6 +32,7 @@
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^8.0.5",
     "pg": "^8.20.0",
+    "resend": "^6.10.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

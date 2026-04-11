@@ -1,0 +1,55 @@
+// prisma/schema/mealCustomization.prisma
+
+model MealSize {
+  id         String  @id @default(uuid())
+  mealId     String
+  meal       Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  name       String  // Small, Medium, Large
+  extraPrice Int     @default(0)
+  isDefault  Boolean @default(false)
+
+  @@index([mealId])
+  @@map("meal_size")
+}
+
+model MealSpiceLevel {
+  id        String  @id @default(uuid())
+  mealId    String
+  meal      Meal    @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  level     String  // Mild, Medium, Hot, Extra Hot
+  isDefault Boolean @default(false)
+
+  @@index([mealId])
+  @@map("meal_spice_level")
+}
+
+model MealAddOn {
+  id        String @id @default(uuid())
+  mealId    String
+  meal      Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  name      String // Extra Cheese, Extra Chicken
+  price     Int    // in BDT
+
+  @@index([mealId])
+  @@map("meal_add_on")
+}
+
+model MealRemoveOption {
+  id     String @id @default(uuid())
+  mealId String
+  meal   Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  name   String // Cheese, Lettuce, Tomato
+
+  @@index([mealId])
+  @@map("meal_remove_option")
+}
+
+model MealIngredient {
+  id     String @id @default(uuid())
+  mealId String
+  meal   Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  name   String // Chicken Breast, Cheddar Cheese
+
+  @@index([mealId])
+  @@map("meal_ingredient")
+}
