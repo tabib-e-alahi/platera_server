@@ -1,6 +1,4 @@
-// src/middlewares/providerGuard.middleware.ts
-
-import { Request, Response, NextFunction } from "express"; // missing import
+import { Request, Response, NextFunction } from "express";
 import { ForbiddenError, NotFoundError } from "../errors/AppError";
 import { prisma } from "../lib/prisma";
 
@@ -26,13 +24,13 @@ const providerGuard = async (
 
     if (profile.approvalStatus === "DRAFT") {
       throw new ForbiddenError(
-        "Please complete your profile and request approval before accessing this feature."
+        "Please complete your profile and request for approval before accessing this feature."
       );
     }
 
     if (profile.approvalStatus === "PENDING") {
       throw new ForbiddenError(
-        "Your provider profile is under review. You will be notified once approved."
+        "Your provider profile is under review. You will be notified within 2 to 3 business days from the date of submission."
       );
     }
 

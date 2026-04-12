@@ -1,9 +1,6 @@
-// src/modules/meal/meal.service.ts
-
 import { prisma } from "../../lib/prisma";
 import {
   BadRequestError,
-  ConflictError,
   ForbiddenError,
   NotFoundError,
 } from "../../errors/AppError";
@@ -11,57 +8,11 @@ import { TCreateMeal, TUpdateMeal } from "./meal.validation";
 import { Prisma } from "../../../generated/prisma/client";
 import { deleteFromCloudinary, deleteMultipleFromCloudinary } from "../../utils/claudinary";
 import { IMealUploadedImages } from "../../utils/extractFiles";
+import { getProviderProfile } from "../../helpers/getProviderProfile";
+import { getMealOwnership } from "../../helpers/getMealOwnership";
 
-// ─── helpers ──────────────────────────────────────────────────────────────────
 
-const getProviderProfile = async (userId: string) => {
-  const profile = await prisma.providerProfile.findUnique({
-    where: { userId },
-    select: {
-      id: true,
-      approvalStatus: true,
-      isActive: true,
-    },
-  });
-
-  if (!profile) {
-    throw new NotFoundError(
-      "Provider profile not found."
-    );
-  }
-
-  if (profile.approvalStatus !== "APPROVED") {
-    throw new ForbiddenError(
-      "Your provider profile must be approved before managing meals."
-    );
-  }
-
-  return profile;
-};
-
-const getMealOwnership = async (
-  mealId: string,
-  providerId: string
-) => {
-  const meal = await prisma.meal.findUnique({
-    where: { id: mealId },
-    select: { id: true, providerId: true },
-  });
-
-  if (!meal) {
-    throw new NotFoundError("Meal not found.");
-  }
-
-  if (meal.providerId !== providerId) {
-    throw new ForbiddenError(
-      "You do not have permission to modify this meal."
-    );
-  }
-
-  return meal;
-};
-
-// ─── Get my meals ─────────────────────────────────────────────────────────────
+//* ─── Get my meals ─────────────────────────────────────────────────────────────
 
 const getMyMeals = async (
   userId: string,
@@ -132,7 +83,7 @@ const getMyMeals = async (
   };
 };
 
-// ─── Get single meal ──────────────────────────────────────────────────────────
+//* ─── Get single meal ──────────────────────────────────────────────────────────
 
 const getMyMealById = async (
   mealId: string,
@@ -159,7 +110,7 @@ const getMyMealById = async (
   return meal;
 };
 
-// ─── Create meal ──────────────────────────────────────────────────────────────
+//* ─── Create meal ──────────────────────────────────────────────────────────────
 
 const createMeal = async (
   userId: string,
@@ -206,6 +157,12 @@ const createMeal = async (
         galleryImageURLs: images.galleryImageURLs ?? [],
         basePrice: payload.basePrice,
         discountPrice: payload.discountPrice ?? null,
+        discountStartDate: payload.discountStartDate
+          ? new Date(payload.discountStartDate)
+          : null,
+        discountEndDate: payload.discountEndDate
+          ? new Date(payload.discountEndDate)
+          : null,
         dietaryPreferences: payload.dietaryPreferences,
         allergens: payload.allergens,
         calories: payload.calories ?? null,
@@ -285,7 +242,7 @@ const createMeal = async (
   });
 };
 
-// ─── Update meal ──────────────────────────────────────────────────────────────
+//* ─── Update meal ──────────────────────────────────────────────────────────────
 
 const updateMeal = async (
   mealId: string,
@@ -294,7 +251,6 @@ const updateMeal = async (
   newImages: IMealUploadedImages
 ) => {
   const profile = await getProviderProfile(userId);
-  const meal = await getMealOwnership(mealId, profile.id);
 
   // verify category if being changed
   if (payload.categoryId) {
@@ -315,7 +271,7 @@ const updateMeal = async (
   }
 
   const existingMeal = await prisma.meal.findUnique({
-    where: { id: mealId },
+    where: { id: mealId, providerId: profile.id },
     select: {
       mainImageURL: true,
       galleryImageURLs: true,
@@ -366,6 +322,16 @@ const updateMeal = async (
   }
   if (payload.discountPrice !== undefined) {
     updateData.discountPrice = payload.discountPrice ?? null;
+  }
+  if (payload.discountStartDate !== undefined) {
+    updateData.discountStartDate = payload.discountStartDate
+      ? new Date(payload.discountStartDate)
+      : null;
+  }
+  if (payload.discountEndDate !== undefined) {
+    updateData.discountEndDate = payload.discountEndDate
+      ? new Date(payload.discountEndDate)
+      : null;
   }
   if (payload.dietaryPreferences !== undefined) {
     updateData.dietaryPreferences = payload.dietaryPreferences;

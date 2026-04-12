@@ -1,7 +1,6 @@
-// prisma/schema/meal.prisma
-
 model Meal {
   id         String          @id @default(uuid())
+
   providerId String
   provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
   categoryId String
@@ -19,8 +18,10 @@ model Meal {
   galleryImageURLs String[]
 
   // pricing
-  basePrice     Int
-  discountPrice Int?
+  basePrice             Int
+  discountPrice         Int?
+  discountStartDate     DateTime?
+  discountEndDate       DateTime?
 
   // dietary and allergens
   dietaryPreferences DietaryPreference[]

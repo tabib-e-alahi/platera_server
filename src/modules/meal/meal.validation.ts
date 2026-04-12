@@ -87,7 +87,14 @@ export const createMealSchema = z
     discountPrice: z.coerce
       .number()
       .int("Discount price must be a whole number.")
-      .min(0, "Discount price cannot be negative.")
+      .min(1, "Discount price must be at least 1 BDT.")
+      .nullish(),
+
+    discountStartDate: z.iso.datetime("Invalid start date format. Use ISO 8601.")
+      .nullish(),
+
+    discountEndDate: z.iso
+      .datetime("Invalid end date format. Use ISO 8601.")
       .nullish(),
 
     dietaryPreferences: z
@@ -173,8 +180,7 @@ export const createMealSchema = z
   .refine(
     (data) => {
       if (
-        data.discountPrice !== null &&
-        data.discountPrice !== undefined &&
+        data.discountPrice != null &&
         data.discountPrice >= data.basePrice
       ) {
         return false;
@@ -184,6 +190,79 @@ export const createMealSchema = z
     {
       message: "Discount price must be less than base price.",
       path: ["discountPrice"],
+    }
+  )
+  // if discount exists, discount must be greater than 0
+  .refine(
+    (data) => {
+      if (data.discountPrice != null && data.discountPrice <= 0) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Discount price must be greater than 0.",
+      path: ["discountPrice"],
+    }
+  )
+  // dates only make sense when discountPrice is set
+  .refine(
+    (data) => {
+      const hasDateWithoutDiscount =
+        (data.discountStartDate != null ||
+          data.discountEndDate != null) &&
+        data.discountPrice == null;
+      return !hasDateWithoutDiscount;
+    },
+    {
+      message:
+        "Discount dates can only be set when a discount price is provided.",
+      path: ["discountStartDate"],
+    }
+  )  // if one date is set both must be set
+  .refine(
+    (data) => {
+      const hasStart = data.discountStartDate != null;
+      const hasEnd = data.discountEndDate != null;
+      if (hasStart !== hasEnd) return false;
+      return true;
+    },
+    {
+      message:
+        "Both discount start date and end date must be provided together.",
+      path: ["discountEndDate"],
+    }
+  )
+  // end date must be after start date
+  .refine(
+    (data) => {
+      if (
+        data.discountStartDate != null &&
+        data.discountEndDate != null
+      ) {
+        return (
+          new Date(data.discountEndDate) >
+          new Date(data.discountStartDate)
+        );
+      }
+      return true;
+    },
+    {
+      message: "Discount end date must be after start date.",
+      path: ["discountEndDate"],
+    }
+  )
+  // end date must be in the future
+  .refine(
+    (data) => {
+      if (data.discountEndDate != null) {
+        return new Date(data.discountEndDate) > new Date();
+      }
+      return true;
+    },
+    {
+      message: "Discount end date must be in the future.",
+      path: ["discountEndDate"],
     }
   )
   .refine(
@@ -229,7 +308,15 @@ export const updateMealSchema = z
     fullDescription: z.string().max(2000).nullish(),
     portionSize: z.string().max(50).nullish(),
     basePrice: z.coerce.number().int().min(1).optional(),
-    discountPrice: z.coerce.number().int().min(0).nullish(),
+    discountPrice: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .nullish(),
+    discountStartDate: z.iso.datetime("Invalid start date format.")
+      .nullish(),
+    discountEndDate: z.iso.datetime("Invalid end date format.")
+      .nullish(),
     dietaryPreferences: z
       .array(
         z.enum([
@@ -273,7 +360,85 @@ export const updateMealSchema = z
       message: "Discount price must be less than base price.",
       path: ["discountPrice"],
     }
-  );
+  )
+  .refine(
+    (data) => {
+      if (
+        data.discountPrice != null &&
+        data.basePrice !== undefined &&
+        data.discountPrice >= data.basePrice
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message: "Discount price must be less than base price.",
+      path: ["discountPrice"],
+    }
+  )
+  .refine(
+    (data) => {
+      const hasDateWithoutDiscount =
+        (data.discountStartDate != null ||
+          data.discountEndDate != null) &&
+        data.discountPrice === null;
+      return !hasDateWithoutDiscount;
+    },
+    {
+      message:
+        "Discount dates can only be set when a discount price is provided.",
+      path: ["discountStartDate"],
+    }
+  )
+  .refine(
+    (data) => {
+      const hasStart = data.discountStartDate != null;
+      const hasEnd = data.discountEndDate != null;
+      if (
+        data.discountPrice != null &&
+        hasStart !== hasEnd
+      ) {
+        return false;
+      }
+      return true;
+    },
+    {
+      message:
+        "Both start and end date must be provided together.",
+      path: ["discountEndDate"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (
+        data.discountStartDate != null &&
+        data.discountEndDate != null
+      ) {
+        return (
+          new Date(data.discountEndDate) >
+          new Date(data.discountStartDate)
+        );
+      }
+      return true;
+    },
+    {
+      message: "End date must be after start date.",
+      path: ["discountEndDate"],
+    }
+  )
+  .refine(
+    (data) => {
+      if (data.discountEndDate != null) {
+        return new Date(data.discountEndDate) > new Date();
+      }
+      return true;
+    },
+    {
+      message: "Discount end date must be in the future.",
+      path: ["discountEndDate"],
+    }
+  );;
 
 export const toggleAvailabilitySchema = z.object({
   isAvailable: z.boolean({
