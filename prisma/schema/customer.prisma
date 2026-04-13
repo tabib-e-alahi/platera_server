@@ -2,9 +2,9 @@ model CustomerProfile {
   id     String @id @default(uuid())
   userId String @unique
 
-  phone         String?
+  phone         String
   city          String
-  streetAddress String?
+  streetAddress String
   houseNumber   String
   apartment     String?
   postalCode    String
