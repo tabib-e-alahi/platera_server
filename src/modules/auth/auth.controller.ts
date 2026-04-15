@@ -5,6 +5,59 @@ import { AuthService } from "./auth.service";
 import { ILoginData } from "../../types/auth.type";
 import { sendResponse } from "../../utils/sendResponse";
 import status from "http-status";
+import { auth } from "../../lib/auth";
+
+//* get current user data
+const getMe = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user.id;
+    const result = await AuthService.getMe(userId);
+
+    return sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "You profile data fetched successfully.",
+      data: result
+    })
+
+  } catch (error) {
+    next(error)
+  }
+}
+
+const sessionCheck = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const session = await auth.api.getSession({
+      headers: req.headers as unknown as Headers,
+    })
+
+    if (!session?.user) {
+      sendResponse(res, {
+        httpStatusCode: status.OK,
+        success: true,
+        message: "No session.",
+        data: null,
+      })
+      return
+    }
+
+    const user = session.user as any
+    const result = await AuthService.sessionCheck(user);
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Session found.",
+      data: result,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
 
 const registerCustomer = async (
   req: Request,
@@ -13,6 +66,7 @@ const registerCustomer = async (
 ): Promise<void> => {
   try {
     const payload = req.body;
+    console.log(payload);
     const result = await AuthService.registerCustomer(payload);
     sendResponse(res, {
       httpStatusCode: status.CREATED,
@@ -67,8 +121,28 @@ const loginUser = async (
   }
 };
 
+const verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email, otp } = req.body;
+    await AuthService.verifyEmail(email, otp);
+
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Email verified successfully",
+    });
+  }
+  catch (error) {
+    next(error)
+  }
+
+}
+
 export const AuthController = {
   registerCustomer,
   registerProvider,
   loginUser,
+  getMe,
+  sessionCheck,
+  verifyEmail
 };

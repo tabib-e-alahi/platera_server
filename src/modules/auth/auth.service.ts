@@ -15,6 +15,44 @@ import {
   IProviderRegisterData,
 } from "../../types/auth.type";
 
+
+const getMe = async (userId: string) => {
+  const userData = await prisma.user.findUnique({
+    where: {
+      id: userId
+    },
+    select: {
+      id: true,
+      role: true,
+      status: true,
+      isDeleted: true,
+      emailVerified: true
+    }
+  })
+
+  return userData;
+}
+
+const sessionCheck = async (user: any) => {
+  let hasProviderProfile = false
+  if (user.role === "PROVIDER") {
+    const profile = await prisma.providerProfile.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    })
+    hasProviderProfile = !!profile
+  }
+
+  return {
+    id: user.id,
+    role: user.role,
+    status: user.status,
+    isDeleted: user.isDeleted,
+    emailVerified: user.emailVerified,
+    hasProviderProfile,
+  }
+}
+
 const registerCustomer = async (payload: ICustomerRegisterData) => {
   const { name, email, password } = payload;
 
@@ -135,8 +173,34 @@ const loginUser = async (
   return body;
 };
 
+
+
+const verifyEmail = async (email: string, otp: string) => {
+
+  const result = await auth.api.verifyEmailOTP({
+    body: {
+      email,
+      otp,
+    }
+  })
+
+  if (result.status && !result.user.emailVerified) {
+    await prisma.user.update({
+      where: {
+        email,
+      },
+      data: {
+        emailVerified: true,
+      }
+    })
+  }
+}
+
 export const AuthService = {
   registerCustomer,
   registerProvider,
   loginUser,
+  getMe,
+  sessionCheck,
+  verifyEmail
 };

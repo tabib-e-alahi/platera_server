@@ -129,6 +129,7 @@ const createProviderProfile = async (
     businessName: payload.businessName,
     businessCategory: payload.businessCategory,
     phone: payload.phone,
+    businessEmail: payload.businessEmail,
     bio: payload.bio ?? null,
     binNumber: payload.binNumber ?? null,
     city: payload.city,

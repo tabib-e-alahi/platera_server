@@ -11,7 +11,7 @@ import { auth } from './lib/auth';
 const app: Application = express();
 
 app.use(cors({
-  origin: "*", // Allow all origins for testing; in production, specify your frontend URL
+  origin: "http://localhost:3000", // Allow all origins for testing; in production, specify your frontend URL
   credentials: true, // Allow cookies to be sent in cross-origin requests
 }));
 

@@ -62,6 +62,36 @@ export const emailTemplates = {
       </a>
     `,
   }),
+
+  emailVerificationOTP: (name: string, otp: string) => ({
+    subject: "Verify your Platera account",
+    html: `
+      <div style="font-family: Arial, sans-serif; color:#111;">
+        <h2>Hi ${name},</h2>
+        <p>Welcome to <strong>Platera</strong> 🍽️</p>
+        <p>Use the code below to verify your email:</p>
+
+        <div style="
+          margin: 24px 0;
+          padding: 16px;
+          font-size: 32px;
+          font-weight: 700;
+          letter-spacing: 6px;
+          text-align:center;
+          background:#FFF7EA;
+          color:#D99017;
+          border-radius:12px;
+        ">
+          ${otp}
+        </div>
+
+        <p>This code will expire in 2 minutes.</p>
+        <p>If you didn’t request this, ignore this email.</p>
+
+        <p>— Platera Team</p>
+      </div>
+    `,
+  }),
 };
 
 // ─── Convenience senders ──────────────────────────────────────────────────────
@@ -106,4 +136,13 @@ export const sendAdminApprovalRequestEmail = async (
     category
   );
   await sendEmail({ to: adminEmail, ...template });
+};
+
+export const sendEmailVerificationOTP = async (
+  name: string,
+  email: string,
+  otp: string,
+): Promise<void> => {
+  const template = emailTemplates.emailVerificationOTP(name, otp);
+  await sendEmail({ to: email, ...template });
 };

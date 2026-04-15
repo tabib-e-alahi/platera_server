@@ -6,6 +6,7 @@ model ProviderProfile {
   businessName     String
   businessCategory BusinessCategory
   phone            String
+  businessEmail    String          @unique
   bio              String?
   imageURL         String?
 

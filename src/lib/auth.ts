@@ -3,27 +3,29 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { userAccountStatus, UserRole } from "../../generated/prisma/enums";
 import envConfig from "../config";
+import { emailOTP } from "better-auth/plugins";
+import { sendEmailVerificationOTP } from "../utils/emailTemplates.utils";
 
 export const auth = betterAuth({
     database: prismaAdapter(prisma, {
         provider: "postgresql", // or "mysql", "postgresql", ...etc
     }),
     session: {
-    // how long a session lives
-    expiresIn: 60 * 60 * 24 * 7,    // 7 days in seconds
-
-    // if user is active, extend session if it is older than this
-    updateAge: 60 * 60 * 24,         // 1 day in seconds
-
-    // cache session in cookie to reduce DB lookups
-    cookieCache: {
-      enabled: true,
-      maxAge: 60 * 5,                // re-validate against DB every 5 minutes
+        expiresIn: 60 * 60 * 24 * 7,    // 7 days in seconds
+        updateAge: 60 * 60 * 24,         // 1 day in seconds
+        cookieCache: {
+            enabled: true,
+            maxAge: 60 * 5,                // re-validate against DB every 5 minutes
+        },
     },
-  },
     emailAndPassword: {
         enabled: true,
-        // requireEmailVerification: true,
+        requireEmailVerification: true,
+    },
+    emailVerification: {
+        sendOnSignUp: true,
+        sendOnSignIn: true,
+        autoSignInAfterVerification: true,
     },
     user: {
         additionalFields: {
@@ -64,15 +66,31 @@ export const auth = betterAuth({
     },
 
     trustedOrigins: [
-    envConfig.frontend_local_host,
-    "http://localhost:5000",  // allow Postman requests
-    "http://localhost:3000",  // frontend dev server
-  ],
+        envConfig.frontend_local_host,
+        "http://localhost:5000",  // allow Postman requests
+        "http://localhost:3000",  // frontend dev server
+    ],
 
-    // advanced: {
-    //     disableCSRFCheck: true, // Disable CSRF check for testing purposes. In production, you should handle CSRF properly.
-    // }
-    // src/lib/auth.ts
+    plugins: [
+        emailOTP({
+            overrideDefaultEmailVerification: true,
+            async sendVerificationOTP({ email, otp, type }) {
+                if (type === "email-verification") {
+                    const user = await prisma.user.findUnique({
+                        where: {
+                            email
+                        }
+                    })
+                    if (user && !user.emailVerified) {
+                        const name = user.name
+                        await sendEmailVerificationOTP(name, email, otp);
+                    }
+
+                }
+            },
+            expiresIn: 2 * 60
+        })
+    ],
 
     databaseHooks: {
         user: {
@@ -89,7 +107,7 @@ export const auth = betterAuth({
                     };
                 },
             },
-            
+
         },
     },
 });

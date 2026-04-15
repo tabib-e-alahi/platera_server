@@ -23,7 +23,7 @@ export const createProviderProfileSchema = z
       .min(10, "Phone number must be at least 10 digits.")
       .max(15, "Phone number cannot exceed 15 digits.")
       .regex(/^[0-9+\-\s()]+$/, "Please provide a valid phone number."),
-
+    businessEmail: z.email(),
     bio: z
       .string()
       .max(500, "Bio cannot exceed 500 characters.")
