@@ -43,6 +43,8 @@ export const extractProviderImages = (
     result.profileImageURL = files.profileImage[0].path;
   }
 
+  console.log("From extractProvider image: ",result);
+
   return result;
 };
 

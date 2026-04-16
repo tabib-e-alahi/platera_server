@@ -6,7 +6,7 @@ import authMiddleware, { UserRole } from "../../middlewares/auth.middleware";
 const router = Router()
 
 //  api/v1/auth/.....
-router.get("/me",authMiddleware(UserRole.CUSTOMER, UserRole.PROVIDER, UserRole.ADMIN, UserRole.SUPER_ADMIN), AuthController.getMe)
+router.get("/me", authMiddleware(UserRole.CUSTOMER, UserRole.PROVIDER, UserRole.ADMIN, UserRole.SUPER_ADMIN), AuthController.getMe)
 
 router.get("/session-check", AuthController.sessionCheck)
 
@@ -30,5 +30,7 @@ router.post(
 
 
 router.post("/verify-email", AuthController.verifyEmail)
+
+router.post("/logout", AuthController.logout)
 
 export const AuthRoutes: Router = router

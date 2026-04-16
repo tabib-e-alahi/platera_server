@@ -14,6 +14,7 @@ export const uploadProviderImages = (
     { name: "nidImages", maxCount: 2 },
     { name: "businessMainGate", maxCount: 1 },
     { name: "businessKitchen", maxCount: 1 },
+     { name: "profileImage", maxCount: 1 },
   ]);
 
   upload(req, res, (err) => {

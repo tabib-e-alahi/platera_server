@@ -25,6 +25,7 @@ router.get(
   ProviderController.getMyProfile
 );
 
+//* create provider profile
 router.post(
   "/profile",
   authMiddleware(UserRole.PROVIDER),

@@ -121,7 +121,7 @@ const createProviderProfile = async (
 
   const nidImageFront_and_BackURL =
     nidUrls.length > 0 ? JSON.stringify(nidUrls) : null;
-
+  console.log(nidImageFront_and_BackURL);
   // explicit Prisma create payload — no spreading of Zod type
   // this avoids the undefined vs null conflict entirely
   const createData: Prisma.ProviderProfileCreateInput = {
@@ -140,6 +140,7 @@ const createProviderProfile = async (
     nidImageFront_and_BackURL,
     businessMainGateURL: images.businessMainGateURL ?? null,
     businessKitchenURL: images.businessKitchenURL ?? null,
+    imageURL: images.profileImageURL ?? null,
   };
 
   const profile = await prisma.providerProfile.create({

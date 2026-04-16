@@ -7,15 +7,17 @@ import { emailOTP } from "better-auth/plugins";
 import { sendEmailVerificationOTP } from "../utils/emailTemplates.utils";
 
 export const auth = betterAuth({
+    baseURL: envConfig.BETTER_AUTH_URL,
+    basePath: "/api/auth",
     database: prismaAdapter(prisma, {
-        provider: "postgresql", // or "mysql", "postgresql", ...etc
+        provider: "postgresql",
     }),
     session: {
-        expiresIn: 60 * 60 * 24 * 7,    // 7 days in seconds
-        updateAge: 60 * 60 * 24,         // 1 day in seconds
+        expiresIn: 60 * 60 * 24 * 7,
+        updateAge: 60 * 60 * 24,
         cookieCache: {
             enabled: true,
-            maxAge: 60 * 5,                // re-validate against DB every 5 minutes
+            maxAge: 60 * 5,
         },
     },
     emailAndPassword: {
@@ -27,6 +29,11 @@ export const auth = betterAuth({
         sendOnSignIn: true,
         autoSignInAfterVerification: true,
     },
+    trustedOrigins: [
+        envConfig.frontend_local_host,
+        "http://localhost:5000",
+        "http://localhost:3000",
+    ],
     user: {
         additionalFields: {
             role: {
@@ -64,12 +71,6 @@ export const auth = betterAuth({
 
         }
     },
-
-    trustedOrigins: [
-        envConfig.frontend_local_host,
-        "http://localhost:5000",  // allow Postman requests
-        "http://localhost:3000",  // frontend dev server
-    ],
 
     plugins: [
         emailOTP({

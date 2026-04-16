@@ -4,11 +4,15 @@ import { ProviderRoutes } from "../modules/provider/provider.routes";
 import { AdminRoutes } from "../modules/admin/admin.routes";
 import authMiddleware, { UserRole } from "../middlewares/auth.middleware";
 import { adminGuard } from "../middlewares/adminGuard.middleware";
+import { PublicRoutes } from "../modules/public/public.route";
+import { MealRoutes } from "../modules/meal/meal.routes";
 
 
 const router = Router()
 
 router.use("/auth", AuthRoutes);
+router.use("/public", PublicRoutes);
+router.use("/meals", MealRoutes)
 router.use("/providers", ProviderRoutes)
 
 router.use("/admins", authMiddleware(UserRole.ADMIN, UserRole.SUPER_ADMIN), adminGuard, AdminRoutes)

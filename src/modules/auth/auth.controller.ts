@@ -16,14 +16,13 @@ const getMe = async (req: Request, res: Response, next: NextFunction) => {
     return sendResponse(res, {
       httpStatusCode: status.OK,
       success: true,
-      message: "You profile data fetched successfully.",
-      data: result
-    })
-
+      message: "Your profile data fetched successfully.",
+      data: result,
+    });
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
+};
 
 const sessionCheck = async (
   req: Request,
@@ -33,7 +32,7 @@ const sessionCheck = async (
   try {
     const session = await auth.api.getSession({
       headers: req.headers as unknown as Headers,
-    })
+    });
 
     if (!session?.user) {
       sendResponse(res, {
@@ -41,23 +40,22 @@ const sessionCheck = async (
         success: true,
         message: "No session.",
         data: null,
-      })
-      return
+      });
+      return;
     }
 
-    const user = session.user as any
+    const user = session.user as any;
     const result = await AuthService.sessionCheck(user);
     sendResponse(res, {
       httpStatusCode: status.OK,
       success: true,
       message: "Session found.",
       data: result,
-    })
+    });
   } catch (error) {
-    next(error)
+    next(error);
   }
-}
-
+};
 
 const registerCustomer = async (
   req: Request,
@@ -66,7 +64,6 @@ const registerCustomer = async (
 ): Promise<void> => {
   try {
     const payload = req.body;
-    console.log(payload);
     const result = await AuthService.registerCustomer(payload);
     sendResponse(res, {
       httpStatusCode: status.CREATED,
@@ -99,6 +96,31 @@ const registerProvider = async (
   }
 };
 
+const buildHeaders = (req: Request) => {
+  const headers = new Headers();
+
+  const copy = (key: string) => {
+    const val = req.headers[key];
+    if (!val) return;
+
+    if (Array.isArray(val)) {
+      headers.set(key, val.join(", "));
+    } else {
+      headers.set(key, String(val));
+    }
+  };
+
+  copy("cookie");
+  copy("user-agent");
+  copy("origin");
+  copy("host");
+  copy("x-forwarded-for");
+  copy("x-forwarded-host");
+  copy("x-forwarded-proto");
+
+  return headers;
+};
+
 const loginUser = async (
   req: Request,
   res: Response,
@@ -107,14 +129,28 @@ const loginUser = async (
   try {
     const payload = req.body as ILoginData;
 
-    // pass req and res so Better Auth can set the cookie
-    const result = await AuthService.loginUser(payload, req as any, res as any);
+    const result = await AuthService.loginUser(payload, buildHeaders(req));
+
+    const setCookies =
+      typeof result.headers.getSetCookie === "function"
+        ? result.headers.getSetCookie()
+        : (() => {
+            const single = result.headers.get("set-cookie");
+            return single ? [single] : [];
+          })();
+
+    for (const cookie of setCookies) {
+      res.append("Set-Cookie", cookie);
+    }
 
     sendResponse(res, {
       httpStatusCode: status.OK,
       success: true,
       message: "Login successful.",
-      data: result,
+      data: {
+        data:result.data,
+        hasProviderProfile: result.hasProviderProfile
+      },
     });
   } catch (error) {
     next(error);
@@ -131,12 +167,38 @@ const verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
       success: true,
       message: "Email verified successfully",
     });
+  } catch (error) {
+    next(error);
   }
-  catch (error) {
-    next(error)
-  }
+};
 
-}
+
+const logout = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await AuthService.logoutUser(buildHeaders(req));
+
+    const setCookies =
+      typeof result.headers.getSetCookie === "function"
+        ? result.headers.getSetCookie()
+        : (() => {
+          const single = result.headers.get("set-cookie");
+          return single ? [single] : [];
+        })();
+
+    for (const cookie of setCookies) {
+      res.append("Set-Cookie", cookie);
+    }
+
+    return sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Logged out successfully",
+      data: null,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const AuthController = {
   registerCustomer,
@@ -144,5 +206,6 @@ export const AuthController = {
   loginUser,
   getMe,
   sessionCheck,
-  verifyEmail
+  verifyEmail,
+  logout,
 };

@@ -1,8 +1,6 @@
-// src/modules/auth/auth.service.ts
-
-import { Response as ExpressResponse } from "express";
 import { userAccountStatus } from "../../../generated/prisma/enums";
 import {
+  AppError,
   BadRequestError,
   ConflictError,
   ForbiddenError,
@@ -14,44 +12,51 @@ import {
   ILoginData,
   IProviderRegisterData,
 } from "../../types/auth.type";
+import status from "http-status";
 
 
 const getMe = async (userId: string) => {
   const userData = await prisma.user.findUnique({
-    where: {
-      id: userId
-    },
+    where: { id: userId },
     select: {
       id: true,
       role: true,
       status: true,
       isDeleted: true,
-      emailVerified: true
-    }
-  })
-
+      emailVerified: true,
+    },
+  });
   return userData;
-}
+};
 
 const sessionCheck = async (user: any) => {
-  let hasProviderProfile = false
+  let hasProviderProfile = false;
+  let providerProfileStatus: "DRAFT" | "PENDING" | "APPROVED" | "REJECTED" | null = null;
+
   if (user.role === "PROVIDER") {
     const profile = await prisma.providerProfile.findUnique({
       where: { userId: user.id },
-      select: { id: true },
-    })
-    hasProviderProfile = !!profile
+      select: { approvalStatus: true },
+    });
+
+    if (profile) {
+      hasProviderProfile = true;
+      providerProfileStatus = profile.approvalStatus;
+    }
   }
 
   return {
-    id: user.id,
-    role: user.role,
-    status: user.status,
-    isDeleted: user.isDeleted,
-    emailVerified: user.emailVerified,
+    isAuthenticated: true,
+    user: {
+      id: user.id,
+      role: user.role,
+      email: user.email,
+      name: user.name,
+    },
     hasProviderProfile,
-  }
-}
+    providerProfileStatus,
+  };
+};
 
 const registerCustomer = async (payload: ICustomerRegisterData) => {
   const { name, email, password } = payload;
@@ -67,16 +72,12 @@ const registerCustomer = async (payload: ICustomerRegisterData) => {
         "This email is associated with a deleted account. Please contact support."
       );
     }
-    throw new ConflictError(
-      "An account with this email already exists."
-    );
+    throw new ConflictError("An account with this email already exists.");
   }
 
   const result = await auth.api.signUpEmail({
     body: { name, email, password },
-    headers: new Headers({
-      "x-intended-role": "CUSTOMER",
-    }),
+    headers: new Headers({ "x-intended-role": "CUSTOMER" }),
   });
 
   if (!result.user) {
@@ -100,16 +101,12 @@ const registerProvider = async (payload: IProviderRegisterData) => {
         "This email is associated with a deleted account. Please contact support."
       );
     }
-    throw new ConflictError(
-      "An account with this email already exists."
-    );
+    throw new ConflictError("An account with this email already exists.");
   }
 
   const result = await auth.api.signUpEmail({
     body: { name, email, password },
-    headers: new Headers({
-      "x-intended-role": "PROVIDER",
-    }),
+    headers: new Headers({ "x-intended-role": "PROVIDER" }),
   });
 
   if (!result.user) {
@@ -119,82 +116,63 @@ const registerProvider = async (payload: IProviderRegisterData) => {
   return result.user;
 };
 
-// loginUser now receives req and res to pass to Better Auth
-// so it can properly set the session cookie on the response
-const loginUser = async (
-  payload: ILoginData,
-  req: Request,
-  res: ExpressResponse
-) => {
+const loginUser = async (payload: ILoginData, headers: Headers) => {
   const { email, password } = payload;
 
-  // check user status BEFORE attempting login
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: {
-      id: true,
-      status: true,
-      isDeleted: true,
-    },
-  });
-
-  if (user) {
-    if (user.isDeleted) {
-      throw new ForbiddenError(
-        "This account has been deleted. Please contact support."
-      );
-    }
-    if (user.status === userAccountStatus.SUSPENDED) {
-      throw new ForbiddenError(
-        "Your account has been suspended. Please contact support."
-      );
-    }
-  }
-
-  // pass req.headers so Better Auth can set the cookie
-  // on the actual HTTP response
-  const loginData = await auth.api.signInEmail({
-    body: { email, password },
-    headers: req.headers as unknown as Headers,
-    asResponse: true, // returns a full Response object with Set-Cookie header
-  });
-
-  // copy all headers from Better Auth response to Express response
-  // this is what actually sets the session cookie
-  loginData.headers.forEach((value, key) => {
-    res.setHeader(key, value);
-  });
-
-  const body = await loginData.json() as {
-    user: Record<string, unknown>;
-    session: Record<string, unknown>;
-  };
-
-  return body;
-};
-
-
-
-const verifyEmail = async (email: string, otp: string) => {
-
-  const result = await auth.api.verifyEmailOTP({
+  const { headers: responseHeaders, response } = await auth.api.signInEmail({
     body: {
       email,
-      otp,
+      password,
+    },
+    headers,
+    returnHeaders: true,
+  });
+
+  if (response.user.status === userAccountStatus.SUSPENDED) {
+    throw new AppError(
+      "User is suspended. Please contact support.",
+      status.FORBIDDEN
+    );
+  }
+
+  if (response.user.isDeleted) {
+    throw new AppError(
+      "This user account was deleted. Please contact support.",
+      status.NOT_FOUND
+    );
+  }
+  const hasProviderProfile = await prisma.providerProfile.findUnique({
+    where: {
+      userId: response.user.id
+    },
+    select: {
+      id: true
     }
   })
 
+  return {
+    data: response,
+    headers: responseHeaders,
+    hasProviderProfile
+  };
+};
+
+const verifyEmail = async (email: string, otp: string) => {
+  const result = await auth.api.verifyEmailOTP({
+    body: { email, otp },
+  });
+
   if (result.status && !result.user.emailVerified) {
     await prisma.user.update({
-      where: {
-        email,
-      },
-      data: {
-        emailVerified: true,
-      }
-    })
+      where: { email },
+      data: { emailVerified: true },
+    });
   }
-}
+};
+
+const logoutUser = async (headers: Headers) => {
+  return await auth.api.signOut({ headers, returnHeaders: true });
+};
 
 export const AuthService = {
   registerCustomer,
@@ -202,5 +180,6 @@ export const AuthService = {
   loginUser,
   getMe,
   sessionCheck,
-  verifyEmail
+  logoutUser,
+  verifyEmail,
 };

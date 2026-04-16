@@ -20,8 +20,8 @@ export const createProviderProfileSchema = z
     phone: z
       .string()
       .min(1, "Phone number is required.")
-      .min(10, "Phone number must be at least 10 digits.")
-      .max(15, "Phone number cannot exceed 15 digits.")
+      .min(8, "Phone number must be at least 8 digits.")
+      .max(14, "Phone number cannot exceed 14 digits.") 
       .regex(/^[0-9+\-\s()]+$/, "Please provide a valid phone number."),
     businessEmail: z.email(),
     bio: z

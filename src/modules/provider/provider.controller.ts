@@ -38,8 +38,9 @@ const createProfile = async (
 ): Promise<void> => {
   try {
     const payload = req.body as TCreateProviderProfile;
+    console.log("From provider controller create profile: images: ", payload);
     const images = extractProviderImages(req);
-
+    console.log("From provider controller create profile: images: ", images);
     const result = await ProviderService.createProviderProfile(
       req.user.id,
       payload,

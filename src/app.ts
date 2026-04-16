@@ -7,12 +7,13 @@ import notFoundHandler from './middlewares/notFoundHandler.js';
 import { IndexRoutes } from './routes/index.js';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './lib/auth';
+import envConfig from './config/index.js';
 
 const app: Application = express();
 
 app.use(cors({
-  origin: "http://localhost:3000", // Allow all origins for testing; in production, specify your frontend URL
-  credentials: true, // Allow cookies to be sent in cross-origin requests
+  origin: [envConfig.frontend_local_host].filter(Boolean),
+  credentials: true,
 }));
 
 app.all("/api/auth/*splat", toNodeHandler(auth));

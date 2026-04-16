@@ -38,6 +38,8 @@ router.get(
 
 router.post(
   "/",
+  authMiddleware(UserRole.PROVIDER),
+  providerGuard,
   uploadMealImages,                        // 1. process images
   validateRequest(createMealSchema),       // 2. validate text
   MealController.createMeal                // 3. handle
