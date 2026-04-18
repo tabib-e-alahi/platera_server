@@ -337,7 +337,10 @@ export const updateMealSchema = z
     preparationTimeMinutes: z.coerce.number().int().min(1).max(180).optional(),
     deliveryFee: z.coerce.number().int().min(0).optional(),
     tags: z.array(z.string().min(1).max(30)).max(10).optional(),
-    isAvailable: z.boolean().optional(),
+    isAvailable: z.preprocess(
+      (val) => val === "true" || val === true,
+      z.boolean()
+    ).optional(),
     sizes: z.array(mealSizeSchema).max(5).optional(),
     spiceLevels: z.array(mealSpiceLevelSchema).max(5).optional(),
     addOns: z.array(mealAddOnSchema).max(10).optional(),

@@ -1,36 +1,42 @@
 model Payment {
-  id                  String           @id @default(uuid())
+  id                       String                   @id @default(uuid())
 
-  orderId             String
-  customerId          String
-  providerId          String
+  orderId                  String
+  customerId               String
+  providerId               String
 
-  amount              Decimal          @db.Decimal(12, 2)
-  platformFeePercent  Decimal          @default(25) @db.Decimal(5, 2)
-  platformFeeAmount   Decimal          @db.Decimal(12, 2)
-  providerShareAmount Decimal          @db.Decimal(12, 2)
+  amount                   Decimal                  @db.Decimal(12, 2)
+  platformFeePercent       Decimal                  @default(25) @db.Decimal(5, 2)
+  platformFeeAmount        Decimal                  @db.Decimal(12, 2)
+  providerShareAmount      Decimal                  @db.Decimal(12, 2)
 
-  transactionId       String           @unique
-  stripeEventId       String?          @unique
-  gatewayName         String?
-  status              PaymentStatus    @default(PENDING)
-  paymentGatewayData  Json?
+  transactionId            String                   @unique
+  stripeEventId            String?                  @unique
+  gatewayName              String?
+  status                   PaymentStatus            @default(PENDING)
 
-  paidAt              DateTime?
-  failedAt            DateTime?
-  refundedAt          DateTime?
+  providerSettlementStatus ProviderSettlementStatus @default(PENDING)
+  providerSettledAt        DateTime?
+  providerSettledBy        String?
+  providerSettlementNote   String?
 
-  createdAt           DateTime         @default(now())
-  updatedAt           DateTime         @updatedAt
+  paymentGatewayData       Json?
 
-  order               Order            @relation(fields: [orderId], references: [id], onDelete: Restrict)
-  customer            User             @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  provider            ProviderProfile  @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  paidAt                   DateTime?
+  failedAt                 DateTime?
+  refundedAt               DateTime?
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  
+  order                    Order                    @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  customer                 User                     @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  provider                 ProviderProfile          @relation(fields: [providerId], references: [id], onDelete: Restrict)
 
   @@index([orderId])
   @@index([customerId])
   @@index([providerId])
   @@index([status])
+  @@index([providerSettlementStatus])
   @@index([transactionId])
   @@map("payments")
 }
