@@ -14,6 +14,7 @@ import {
   rejectProviderSchema,
   createAdminSchema,
   suspendUserSchema,
+  markProviderPaidSchema,
 } from "./admin.validation";
 
 const router = Router();
@@ -97,6 +98,21 @@ router.post(
   superAdminGuard,
   validateRequest(createAdminSchema),
   AdminController.createAdmin
+);
+
+
+//! ===================
+router.get("/orders", AdminController.getAllOrders);
+router.get("/orders/:id", AdminController.getOrderDetail);
+
+router.get("/payments", AdminController.getAllPayments);
+router.get("/payments/:id", AdminController.getPaymentDetail);
+router.get("/payables/providers", AdminController.getProviderPayablesSummary);
+
+router.patch(
+  "/payments/:id/mark-provider-paid",
+  validateRequest(markProviderPaidSchema),
+  AdminController.markPaymentAsProviderPaid
 );
 
 export const AdminRoutes: Router = router;

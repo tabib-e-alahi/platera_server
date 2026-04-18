@@ -8,6 +8,9 @@ import {
   TSuspendUser,
   userListQuerySchema,
   providerListQuerySchema,
+  orderListQuerySchema,
+  paymentListQuerySchema,
+  TMarkProviderPaid,
 } from "./admin.validation";
 import { sendResponse } from "../../utils/sendResponse";
 import status from "http-status";
@@ -260,6 +263,107 @@ const createAdmin = async (
   }
 };
 
+//! ================ /////////////////////////// ================== new
+const getAllOrders = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const query = orderListQuerySchema.parse(req.query);
+    const result = await AdminService.getAllOrders(query);
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Orders fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getOrderDetail = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await AdminService.getOrderDetail(req.params.id as string);
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Order detail fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getAllPayments = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const query = paymentListQuerySchema.parse(req.query);
+    const result = await AdminService.getAllPayments(query);
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Payments fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getPaymentDetail = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await AdminService.getPaymentDetail(req.params.id as string);
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Payment detail fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getProviderPayablesSummary = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const result = await AdminService.getProviderPayablesSummary();
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Provider payables fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const markPaymentAsProviderPaid = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { note } = req.body as TMarkProviderPaid;
+    const result = await AdminService.markPaymentAsProviderPaid(
+      req.params.id as string,
+      req.user.id,
+      note
+    );
+
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Payment marked as provider paid successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const AdminController = {
   getDashboardStats,
   getPendingProviders,
@@ -273,4 +377,10 @@ export const AdminController = {
   reactivateUser,
   getAllAdmins,
   createAdmin,
+  getAllOrders,
+  getOrderDetail,
+  getAllPayments,
+  getPaymentDetail,
+  getProviderPayablesSummary,
+  markPaymentAsProviderPaid,
 };

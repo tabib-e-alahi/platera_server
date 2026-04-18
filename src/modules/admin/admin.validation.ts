@@ -56,8 +56,41 @@ export const providerListQuerySchema = z.object({
   search: z.string().optional(),
 });
 
+export const paymentListQuerySchema = z.object({
+  status: z.enum(["PENDING", "SUCCESS", "FAILED", "CANCELLED", "REFUNDED"]).optional(),
+  providerSettlementStatus: z.enum(["PENDING", "PAID"]).optional(),
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(10),
+  search: z.string().optional(),
+});
+
+export const orderListQuerySchema = z.object({
+  status: z
+    .enum([
+      "PENDING_PAYMENT",
+      "PLACED",
+      "ACCEPTED",
+      "PREPARING",
+      "OUT_FOR_DELIVERY",
+      "DELIVERED",
+      "CANCELLED",
+      "REFUNDED",
+    ])
+    .optional(),
+  page: z.coerce.number().min(1).default(1),
+  limit: z.coerce.number().min(1).max(100).default(10),
+  search: z.string().optional(),
+});
+
+export const markProviderPaidSchema = z.object({
+  note: z.string().max(300).optional(),
+});
+
 export type TRejectProvider = z.infer<typeof rejectProviderSchema>;
 export type TCreateAdmin = z.infer<typeof createAdminSchema>;
 export type TSuspendUser = z.infer<typeof suspendUserSchema>;
 export type TUserListQuery = z.infer<typeof userListQuerySchema>;
 export type TProviderListQuery = z.infer<typeof providerListQuerySchema>;
+export type TPaymentListQuery = z.infer<typeof paymentListQuerySchema>;
+export type TOrderListQuery = z.infer<typeof orderListQuerySchema>;
+export type TMarkProviderPaid = z.infer<typeof markProviderPaidSchema>;
