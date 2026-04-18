@@ -17,7 +17,6 @@ model User {
   providerProfile    ProviderProfile?
   reviews            Review[]
   customerProfile    CustomerProfile?
-  cart               Cart?
   orders             Order[]
   payments           Payment[]
 
