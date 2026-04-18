@@ -12,43 +12,6 @@ import { Prisma } from "../../../generated/prisma/client";
 
 const normalizeCity = (city: string) => city.trim().toUpperCase();
 
-type TCartWithRelations = Awaited<ReturnType<typeof getCartWithRelations>>;
-
-const getCartWithRelations = async (cartId: string) => {
-  return prisma.cart.findUnique({
-    where: { id: cartId },
-    include: {
-      provider: {
-        select: {
-          id: true,
-          businessName: true,
-          city: true,
-          imageURL: true,
-        },
-      },
-      items: {
-        include: {
-          meal: {
-            select: {
-              id: true,
-              name: true,
-              mainImageURL: true,
-              basePrice: true,
-              discountPrice: true,
-              deliveryFee: true,
-              isAvailable: true,
-              isActive: true,
-            },
-          },
-        },
-        orderBy: {
-          createdAt: "asc",
-        },
-      },
-    },
-  });
-};
-
 const getCustomerProfileOrThrow = async (userId: string) => {
   const customerProfile = await prisma.customerProfile.findUnique({
     where: { userId },
@@ -66,7 +29,7 @@ const getCustomerProfileOrThrow = async (userId: string) => {
 const recalculateCartTotals = async (
   tx: Prisma.TransactionClient,
   cartId: string
-): Promise<TCartWithRelations> => {
+) => {
   const items = await tx.cartItem.findMany({
     where: { cartId },
     include: {
@@ -79,19 +42,19 @@ const recalculateCartTotals = async (
   });
 
   const subtotal = items.reduce(
-    (sum: number, item: any) => sum + Number(item.totalPrice),
+    (sum, item) => sum + Number(item.totalPrice),
     0
   );
 
   const discountAmount = items.reduce(
-    (sum: number, item: any) =>
+    (sum, item) =>
       sum + (Number(item.baseUnitPrice) - Number(item.unitPrice)) * item.quantity,
     0
   );
 
   const deliveryFee =
     items.length > 0
-      ? Math.max(...items.map((item: any) => Number(item.meal.deliveryFee || 0)))
+      ? Math.max(...items.map((item) => Number(item.meal.deliveryFee || 0)))
       : 0;
 
   const totalAmount = subtotal + deliveryFee;
@@ -106,7 +69,7 @@ const recalculateCartTotals = async (
     },
   });
 
-  const updatedCart = await prisma.cart.findUnique({
+  const updatedCart = await tx.cart.findUnique({
     where: { id: cartId },
     include: {
       provider: {
