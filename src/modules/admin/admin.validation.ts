@@ -86,6 +86,13 @@ export const markProviderPaidSchema = z.object({
   note: z.string().max(300).optional(),
 });
 
+export const updateProviderStatusSchema = z.object({
+  approvalStatus: z.enum(["DRAFT", "PENDING", "APPROVED", "REJECTED"]).optional(),
+  userStatus: z.enum(["ACTIVE", "SUSPENDED"]).optional(),
+  rejectionReason: z.string().max(500).optional(),
+});
+
+export type TUpdateProviderStatus = z.infer<typeof updateProviderStatusSchema>;
 export type TRejectProvider = z.infer<typeof rejectProviderSchema>;
 export type TCreateAdmin = z.infer<typeof createAdminSchema>;
 export type TSuspendUser = z.infer<typeof suspendUserSchema>;

@@ -3,6 +3,21 @@
 import envConfig from "../config";
 import { sendEmail } from "./email.utils";
 
+type TAdminProviderApprovalRequestEmailData = {
+  providerName: string;
+  providerEmail: string;
+  providerPhone?: string | null;
+  businessName: string;
+  businessCategory: string;
+  businessEmail: string;
+  city: string;
+  street: string;
+  houseNumber: string;
+  apartment?: string | null;
+  postalCode: string;
+  binNumber?: string | null;
+};
+
 
 export const emailTemplates = {
   providerRegistered: (name: string) => ({
@@ -23,7 +38,7 @@ export const emailTemplates = {
       <h2>Congratulations ${name}!</h2>
       <p>Your provider profile has been approved by our team.</p>
       <p>You can now log in and start listing your meals.</p>
-      <a href="${envConfig.frontend_local_host}/dashboard/provider">
+      <a href="${envConfig.frontend_local_host}/provider-dashboard/profile">
         Go to your dashboard
       </a>
       <p>— The Platera Team</p>
@@ -39,25 +54,40 @@ export const emailTemplates = {
       <p><strong>Reason:</strong> ${reason}</p>
       <p>You can log in, update your profile based on the 
          feedback above, and resubmit for approval.</p>
-      <a href="${envConfig.frontend_local_host}/dashboard/provider">
+      <a href="${envConfig.frontend_local_host}/provider-dashboard/profile">
         Update your profile
       </a>
       <p>— The Platera Team</p>
     `,
   }),
 
-  adminProviderApprovalRequest: (
-    providerName: string,
-    businessName: string,
-    category: string
-  ) => ({
+  adminProviderApprovalRequest: (data: TAdminProviderApprovalRequestEmailData) => ({
     subject: "New provider approval request",
     html: `
       <h2>Provider Approval Request</h2>
-      <p><strong>Provider:</strong> ${providerName}</p>
-      <p><strong>Business:</strong> ${businessName}</p>
-      <p><strong>Category:</strong> ${category}</p>
-      <a href="${envConfig.frontend_local_host}/dashboard/admin/providers">
+
+      <p><strong>Provider Name:</strong> ${data.providerName}</p>
+      <p><strong>Provider Email:</strong> ${data.providerEmail}</p>
+      <p><strong>Provider Phone:</strong> ${data.providerPhone ?? "N/A"}</p>
+
+      <hr />
+
+      <p><strong>Business Name:</strong> ${data.businessName}</p>
+      <p><strong>Business Type:</strong> ${data.businessCategory}</p>
+      <p><strong>Business Email:</strong> ${data.businessEmail}</p>
+      <p><strong>BIN:</strong> ${data.binNumber ?? "N/A"}</p>
+
+      <hr />
+
+      <p><strong>District:</strong> ${data.city}</p>
+      <p><strong>Street:</strong> ${data.street}</p>
+      <p><strong>House Number:</strong> ${data.houseNumber}</p>
+      <p><strong>Apartment:</strong> ${data.apartment ?? "N/A"}</p>
+      <p><strong>Postal Code:</strong> ${data.postalCode}</p>
+
+      <br />
+
+      <a href="${envConfig.frontend_local_host}/admin-dashboard/provider-request">
         Review in admin panel
       </a>
     `,
@@ -125,16 +155,9 @@ export const sendProviderRejectedEmail = async (
 
 export const sendAdminApprovalRequestEmail = async (
   adminEmail: string,
-  providerName: string,
-  businessName: string,
-  category: string
+  data: TAdminProviderApprovalRequestEmailData
 ): Promise<void> => {
-  console.log("hitted herrjjjjjjjjj", adminEmail);
-  const template = emailTemplates.adminProviderApprovalRequest(
-    providerName,
-    businessName,
-    category
-  );
+  const template = emailTemplates.adminProviderApprovalRequest(data);
   await sendEmail({ to: adminEmail, ...template });
 };
 

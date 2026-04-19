@@ -15,6 +15,7 @@ import {
   createAdminSchema,
   suspendUserSchema,
   markProviderPaidSchema,
+  updateProviderStatusSchema,
 } from "./admin.validation";
 
 const router = Router();
@@ -113,6 +114,12 @@ router.patch(
   "/payments/:id/mark-provider-paid",
   validateRequest(markProviderPaidSchema),
   AdminController.markPaymentAsProviderPaid
+);
+
+router.patch(
+  "/providers/:id/status",
+  validateRequest(updateProviderStatusSchema),
+  AdminController.updateProviderStatus
 );
 
 export const AdminRoutes: Router = router;

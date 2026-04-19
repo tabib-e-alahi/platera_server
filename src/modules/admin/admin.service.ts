@@ -14,6 +14,7 @@ import {
   TOrderListQuery,
   TPaymentListQuery,
   TProviderListQuery,
+  TUpdateProviderStatus,
   TUserListQuery,
 } from "./admin.validation";
 import { sendProviderApprovedEmail, sendProviderRejectedEmail } from "../../utils/emailTemplates.utils";
@@ -155,6 +156,24 @@ const getProviderDetail = async (profileId: string) => {
           emailVerified: true,
         },
       },
+      meals: {
+        select: {
+          id: true,
+        },
+      },
+      orders: {
+        select: {
+          id: true,
+        },
+      },
+      payments: {
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+          providerSettlementStatus: true,
+        },
+      },
     },
   });
 
@@ -162,7 +181,12 @@ const getProviderDetail = async (profileId: string) => {
     throw new NotFoundError("Provider profile not found.");
   }
 
-  return profile;
+  return {
+    ...profile,
+    mealCount: profile.meals.length,
+    orderCount: profile.orders.length,
+    paymentCount: profile.payments.length,
+  };
 };
 
 const approveProvider = async (
@@ -910,6 +934,78 @@ const markPaymentAsProviderPaid = async (
   return updated;
 };
 
+const updateProviderStatus = async (
+  profileId: string,
+  adminId: string,
+  payload: TUpdateProviderStatus
+) => {
+  const profile = await prisma.providerProfile.findUnique({
+    where: { id: profileId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          status: true,
+          isDeleted: true,
+        },
+      },
+    },
+  });
+
+  if (!profile) {
+    throw new NotFoundError("Provider profile not found.");
+  }
+
+  if (profile.user.isDeleted) {
+    throw new ForbiddenError("This provider account has been deleted.");
+  }
+
+  const { approvalStatus, userStatus, rejectionReason } = payload;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    if (userStatus) {
+      await tx.user.update({
+        where: { id: profile.user.id },
+        data: {
+          status: userStatus,
+        },
+      });
+    }
+
+    if (approvalStatus) {
+      await tx.providerProfile.update({
+        where: { id: profileId },
+        data: {
+          approvalStatus,
+          rejectionReason:
+            approvalStatus === "REJECTED" ? rejectionReason ?? null : null,
+          reviewedBy: adminId,
+          reviewedAt: new Date(),
+        },
+      });
+    }
+
+    return tx.providerProfile.findUnique({
+      where: { id: profileId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            status: true,
+          },
+        },
+      },
+    });
+  });
+
+  return updated;
+};
+
 export const AdminService = {
   getPendingProviders,
   getAllProviders,
@@ -929,4 +1025,5 @@ export const AdminService = {
   getOrderDetail,
   getProviderPayablesSummary,
   markPaymentAsProviderPaid,
+  updateProviderStatus
 };

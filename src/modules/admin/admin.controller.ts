@@ -364,6 +364,30 @@ const markPaymentAsProviderPaid = async (
   }
 };
 
+const updateProviderStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const providerId = req.params.id as string;
+    const result = await AdminService.updateProviderStatus(
+      providerId,
+      req.user.id,
+      req.body
+    );
+
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Provider status updated successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const AdminController = {
   getDashboardStats,
   getPendingProviders,
@@ -383,4 +407,5 @@ export const AdminController = {
   getPaymentDetail,
   getProviderPayablesSummary,
   markPaymentAsProviderPaid,
+  updateProviderStatus
 };

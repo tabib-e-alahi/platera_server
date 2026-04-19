@@ -416,6 +416,7 @@ const requestApproval = async (userId: string) => {
       status: true,
       isDeleted: true,
       emailVerified: true,
+      phone: true,
     },
   });
 
@@ -444,9 +445,19 @@ const requestApproval = async (userId: string) => {
       approvalStatus: true,
       businessName: true,
       businessCategory: true,
+      businessEmail: true,
+      phone: true,
+      city: true,
+      street: true,
+      houseNumber: true,
+      apartment: true,
+      postalCode: true,
       binNumber: true,
       nidImageFront_and_BackURL: true,
       businessMainGateURL: true,
+      businessKitchenURL: true,
+      imageURL: true,
+      bio: true,
     },
   });
 
@@ -530,12 +541,20 @@ const requestApproval = async (userId: string) => {
 
   await Promise.all(
     admins.map((admin) =>
-      sendAdminApprovalRequestEmail(
-        admin.email,
-        user.name,
-        profile.businessName,
-        profile.businessCategory
-      )
+      sendAdminApprovalRequestEmail(admin.email, {
+        providerName: user.name,
+        providerEmail: user.email,
+        providerPhone: profile.phone ?? user.phone ?? null,
+        businessName: profile.businessName,
+        businessCategory: profile.businessCategory,
+        businessEmail: profile.businessEmail,
+        city: profile.city,
+        street: profile.street,
+        houseNumber: profile.houseNumber,
+        apartment: profile.apartment ?? null,
+        postalCode: profile.postalCode,
+        binNumber: profile.binNumber ?? null,
+      })
     )
   );
 
