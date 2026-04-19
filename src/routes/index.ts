@@ -8,14 +8,17 @@ import { PublicRoutes } from "../modules/public/public.route";
 import { MealRoutes } from "../modules/meal/meal.routes";
 import { CustomerRoutes } from "../modules/customer/customer.routes";
 import { CartRoutes } from "../modules/cart/cart.routes";
+import { OrderRoutes } from "../modules/order/order.routes";
 
 
 const router = Router()
 
+//* /api/v1/... */
 router.use("/auth", AuthRoutes);
 router.use("/public", PublicRoutes);
 router.use("/customers", CustomerRoutes);
 router.use("/cart", CartRoutes);
+router.use("/orders", OrderRoutes);
 router.use("/provider/meals", MealRoutes)
 router.use("/providers", ProviderRoutes)
 
