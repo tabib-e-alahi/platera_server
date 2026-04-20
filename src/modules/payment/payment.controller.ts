@@ -29,13 +29,13 @@ const initiateSSLPayment = async (
 
 // POST /api/v1/payments/sslcommerz/ipn  — called by SSLCommerz server
 // Must NOT have auth middleware (SSLCommerz calls this, not the user)
-const handleIPNNotification = async (
+const handleIPN = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const result = await PaymentService.handleIPNNotification(req.body);
+    const result = await PaymentService.handleIPN(req.body);
     // SSLCommerz expects a 200 OK plain response
     res.status(200).json(result);
   } catch (error) {
@@ -68,80 +68,80 @@ const getPaymentStatus = async (
 // Admin controllers
 
 // GET /api/v1/admins/settlements
-const getPaymentsForAdmin = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const page  = Number(req.query.page)  || 1;
-    const limit = Number(req.query.limit) || 20;
-    const settlementStatus = req.query.settlementStatus as string | undefined;
-    const providerId       = req.query.providerId as string | undefined;
+// const getPaymentsForAdmin = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const page  = Number(req.query.page)  || 1;
+//     const limit = Number(req.query.limit) || 20;
+//     const settlementStatus = req.query.settlementStatus as string | undefined;
+//     const providerId       = req.query.providerId as string | undefined;
 
-    const result = await PaymentService.getPaymentsForAdmin({
-      page,
-      limit,
-      ...(settlementStatus && { settlementStatus }),
-      ...(providerId && { providerId }),
-    });
+//     const result = await PaymentService.getPaymentsForAdmin({
+//       page,
+//       limit,
+//       ...(settlementStatus && { settlementStatus }),
+//       ...(providerId && { providerId }),
+//     });
 
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Payments fetched.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+//     sendResponse(res, {
+//       httpStatusCode: status.OK,
+//       success: true,
+//       message: "Payments fetched.",
+//       data: result,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
-// PATCH /api/v1/admins/settlements/:paymentId
-const settleProviderPayment = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const result = await PaymentService.settleProviderPayment(
-      req.user.id,
-      req.params.paymentId as string,
-      req.body.note
-    );
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Payment settled successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// // PATCH /api/v1/admins/settlements/:paymentId
+// const settleProviderPayment = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const result = await PaymentService.settleProviderPayment(
+//       req.user.id,
+//       req.params.paymentId as string,
+//       req.body.note
+//     );
+//     sendResponse(res, {
+//       httpStatusCode: status.OK,
+//       success: true,
+//       message: "Payment settled successfully.",
+//       data: result,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
-// PATCH /api/v1/admins/settlements/bulk/:providerId
-const bulkSettleProvider = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const result = await PaymentService.bulkSettleProvider(
-      req.user.id,
-      req.params.providerId as string,
-      req.body.note
-    );
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Bulk settlement completed.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+// // PATCH /api/v1/admins/settlements/bulk/:providerId
+// const bulkSettleProvider = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const result = await PaymentService.bulkSettleProvider(
+//       req.user.id,
+//       req.params.providerId as string,
+//       req.body.note
+//     );
+//     sendResponse(res, {
+//       httpStatusCode: status.OK,
+//       success: true,
+//       message: "Bulk settlement completed.",
+//       data: result,
+//     });
+//   } catch (error) {
+//     next(error);
+//   }
+// };
 
 
 //! ================ New Added ==================================
@@ -172,11 +172,8 @@ const handleCancel = async (req: Request, res: Response) => {
 
 export const PaymentController = {
   initiateSSLPayment,
-  handleIPNNotification,
+  handleIPN,
   getPaymentStatus,
-  getPaymentsForAdmin,
-  settleProviderPayment,
-  bulkSettleProvider,
   handleSuccess,
   handleFail,
   handleCancel
