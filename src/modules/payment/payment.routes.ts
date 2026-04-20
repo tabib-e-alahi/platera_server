@@ -22,13 +22,19 @@ router.get(
 
 // ── SSLCommerz server-to-server IPN callback ──────────────────────────────────
 // NO auth middleware — SSLCommerz calls this directly
-router.post(
-  "/sslcommerz/ipn",
-  PaymentController.handleIPNNotification
-);
+// router.post(
+//   "/sslcommerz/ipn",
+//   PaymentController.handleIPNNotification
+// );
 
 //! ================== New added ==============================
+// Callbacks from SSLCommerz
+router.post("/sslcommerz/success", PaymentController.handleSuccess);
+router.post("/sslcommerz/fail", PaymentController.handleFail);
+router.post("/sslcommerz/cancel", PaymentController.handleCancel);
 
+// IPN (backup)
+router.post("/sslcommerz/ipn", PaymentController.handleIPN);
 
 
 

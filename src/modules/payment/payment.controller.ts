@@ -143,6 +143,33 @@ const bulkSettleProvider = async (
   }
 };
 
+
+//! ================ New Added ==================================
+const handleSuccess = async (req: Request, res: Response) => {
+  const result = await PaymentService.handleSuccess(req.body);
+
+  return res.redirect(
+    `${process.env.FRONTEND_PROD_HOST}/checkout/payment/success?orderId=${result.orderId}`
+  );
+};
+
+const handleFail = async (req: Request, res: Response) => {
+  const result = await PaymentService.handleFail(req.body);
+
+  return res.redirect(
+    `${process.env.FRONTEND_PROD_HOST}/checkout/payment/fail?orderId=${result.orderId}`
+  );
+};
+
+const handleCancel = async (req: Request, res: Response) => {
+  const result = await PaymentService.handleCancel(req.body);
+
+  return res.redirect(
+    `${process.env.FRONTEND_PROD_HOST}/checkout/payment/cancel?orderId=${result.orderId}`
+  );
+};
+
+
 export const PaymentController = {
   initiateSSLPayment,
   handleIPNNotification,
@@ -150,4 +177,7 @@ export const PaymentController = {
   getPaymentsForAdmin,
   settleProviderPayment,
   bulkSettleProvider,
+  handleSuccess,
+  handleFail,
+  handleCancel
 };
