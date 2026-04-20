@@ -9,6 +9,7 @@ import { MealRoutes } from "../modules/meal/meal.routes";
 import { CustomerRoutes } from "../modules/customer/customer.routes";
 import { CartRoutes } from "../modules/cart/cart.routes";
 import { OrderRoutes } from "../modules/order/order.routes";
+import { PaymentRoutes } from "../modules/payment/payment.routes";
 
 
 const router = Router()
@@ -17,8 +18,11 @@ const router = Router()
 router.use("/auth", AuthRoutes);
 router.use("/public", PublicRoutes);
 router.use("/customers", CustomerRoutes);
+
 router.use("/cart", CartRoutes);
 router.use("/orders", OrderRoutes);
+router.use("/payments", PaymentRoutes);
+
 router.use("/provider/meals", MealRoutes)
 router.use("/providers", ProviderRoutes)
 

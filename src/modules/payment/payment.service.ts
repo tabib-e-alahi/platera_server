@@ -71,3 +71,72 @@ const initiatePayment = async (userId: string, orderId: string) => {
     paymentUrl: response.data.GatewayPageURL,
   };
 };
+
+const verifyPayment = async (tran_id: string) => {
+  const url = `${process.env.SSLCOMMERZ_VALIDATION_API}?val_id=${tran_id}&store_id=${process.env.SSLCOMMERZ_STORE_ID}&store_passwd=${process.env.SSLCOMMERZ_STORE_PASS}`;
+
+  const response = await axios.get(url);
+
+  return response.data;
+};
+
+const handleIPN = async (body: any) => {
+  const { tran_id, status } = body;
+
+  const payment = await prisma.payment.findUnique({
+    where: { transactionId: tran_id },
+  });
+
+  if (!payment) throw new NotFoundError("Payment not found.");
+
+  if (status !== "VALID") {
+    await prisma.payment.update({
+      where: { id: payment.id },
+      data: { status: "FAILED" },
+    });
+    return;
+  }
+
+  const order = await prisma.order.findUnique({
+    where: { id: payment.orderId },
+  });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.payment.update({
+      where: { id: payment.id },
+      data: {
+        status: "SUCCESS",
+        paidAt: new Date(),
+      },
+    });
+
+    await tx.order.update({
+      where: { id: order!.id },
+      data: {
+        status: "PLACED",
+        placedAt: new Date(),
+      },
+    });
+
+    await tx.providerProfile.update({
+      where: { id: payment.providerId },
+      data: {
+        totalGrossRevenue: { increment: payment.amount },
+        totalPlatformFee: { increment: payment.platformFeeAmount },
+        totalProviderEarning: { increment: payment.providerShareAmount },
+        currentPayableAmount: { increment: payment.providerShareAmount },
+        lastPaymentAt: new Date(),
+      },
+    });
+
+    await tx.cart.deleteMany({
+      where: { customerId: payment.customerId },
+    });
+  });
+};
+
+export const PaymentService = {
+  initiatePayment,
+  verifyPayment,
+  handleIPN,
+}
