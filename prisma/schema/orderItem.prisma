@@ -18,6 +18,7 @@ model OrderItem {
 
   // Relations
   order          Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  meal           Meal  @relation(fields: [mealId], references: [id])
 
   @@index([orderId])
   @@index([mealId])
