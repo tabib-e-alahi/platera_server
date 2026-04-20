@@ -80,7 +80,7 @@ const recalculateCartTotals = async (
           imageURL: true,
         },
       },
-      items: {
+      cartItems: {
         include: {
           meal: {
             select: {
@@ -125,7 +125,7 @@ const getMyCart = async (userId: string) => {
           imageURL: true,
         },
       },
-      items: {
+      cartItems: {
         include: {
           meal: {
             select: {

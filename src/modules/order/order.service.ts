@@ -32,16 +32,16 @@ const getCartOrThrow = async (customerProfileId: string) => {
     where: { customerId: customerProfileId },
     include: {
       provider: true,
-      items: {
-        include: {
-          meal: true,
-        },
-        orderBy: { createdAt: "asc" },
-      },
+      cartItems:{
+          include: {
+              meal: true,
+          },
+          orderBy: { createdAt: "asc" },
+      }
     },
   });
 
-  if (!cart || cart.items.length === 0) {
+  if (!cart || cart.cartItems.length === 0) {
     throw new BadRequestError("Your cart is empty.");
   }
 
@@ -68,7 +68,7 @@ const buildValidatedCheckoutState = async (
     );
   }
 
-  const validatedItems = cart.items.map((item) => {
+  const validatedItems = cart.cartItems.map((item) => {
     const meal = item.meal;
 
     if (!meal.isActive || !meal.isAvailable) {
@@ -247,7 +247,7 @@ const createOrder = async (userId: string, payload: TCreateOrderPayload) => {
             city: true,
           },
         },
-        items: true,
+        orderItems: true,
       },
     });
 
@@ -269,7 +269,7 @@ const getMyOrders = async (userId: string) => {
           imageURL: true,
         },
       },
-      items: true,
+      orderItems: true,
       payments: {
         select: {
           id: true,
@@ -301,7 +301,7 @@ const getMyOrderDetail = async (userId: string, orderId: string) => {
           phone: true,
         },
       },
-      items: true,
+      orderItems:true,
       payments: true,
     },
   });

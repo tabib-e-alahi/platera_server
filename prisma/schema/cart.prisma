@@ -8,9 +8,9 @@ model Cart {
   totalAmount    Decimal         @default(0) @db.Decimal(12, 2)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
-  items          CartItem[]
   customer       CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
   provider       ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  cartItems      CartItem[]
 
   @@index([providerId])
   @@map("carts")
