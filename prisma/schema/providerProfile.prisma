@@ -1,51 +1,41 @@
 model ProviderProfile {
-  id     String @id @default(uuid())
-  userId String @unique
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  businessName     String
-  businessCategory BusinessCategory
-  phone            String
-  businessEmail    String           @unique
-  bio              String?
-  imageURL         String?
-
-  binNumber   String?
-  binVerified Boolean @default(false)
-
+  id                        String           @id @default(uuid())
+  userId                    String           @unique
+  businessName              String
+  businessCategory          BusinessCategory
+  phone                     String
+  bio                       String?
+  imageURL                  String?
+  binNumber                 String?
+  binVerified               Boolean          @default(false)
+  city                      String
+  street                    String
+  houseNumber               String
+  apartment                 String?
+  postalCode                String
+  approvalStatus            ApprovalStatus   @default(DRAFT)
+  rejectionReason           String?
+  reviewedBy                String?
+  reviewedAt                DateTime?
+  isActive                  Boolean          @default(true)
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+  businessKitchenURL        String?
+  businessMainGateURL       String?
   nidImageFront_and_BackURL String?
-
-  businessMainGateURL String?
-  businessKitchenURL  String?
-
-  city        String
-  street      String
-  houseNumber String
-  apartment   String?
-  postalCode  String
-
-  approvalStatus  ApprovalStatus @default(DRAFT)
-  rejectionReason String?
-  reviewedBy      String?
-  reviewedAt      DateTime?
-
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // finance summary fields
-  totalOrdersCompleted Int       @default(0)
-  totalGrossRevenue    Decimal   @default(0) @db.Decimal(12, 2)
-  totalPlatformFee     Decimal   @default(0) @db.Decimal(12, 2)
-  totalProviderEarning Decimal   @default(0) @db.Decimal(12, 2)
-  currentPayableAmount Decimal   @default(0) @db.Decimal(12, 2)
-  lastPaymentAt        DateTime?
-
-  meals    Meal[]
-  reviews  Review[]
-  carts    Cart[]
-  orders   Order[]
-  payments Payment[]
+  businessEmail             String           @unique
+  currentPayableAmount      Decimal          @default(0) @db.Decimal(12, 2)
+  lastPaymentAt             DateTime?
+  totalGrossRevenue         Decimal          @default(0) @db.Decimal(12, 2)
+  totalOrdersCompleted      Int              @default(0)
+  totalPlatformFee          Decimal          @default(0) @db.Decimal(12, 2)
+  totalProviderEarning      Decimal          @default(0) @db.Decimal(12, 2)
+  carts                     Cart[]
+  meals                     Meal[]
+  orders                    Order[]
+  payments                  Payment[]
+  user                      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviews                   Review[]
 
   @@index([userId])
   @@index([city])

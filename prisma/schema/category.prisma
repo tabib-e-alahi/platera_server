@@ -1,16 +1,13 @@
-// prisma/schema/category.prisma
-
 model Category {
   id           String   @id @default(uuid())
   name         String   @unique
   slug         String   @unique
-  imageURL     String   
+  imageURL     String
   displayOrder Int      @default(0)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
-  meals Meal[]
+  meals        Meal[]
 
   @@index([slug])
   @@map("category")

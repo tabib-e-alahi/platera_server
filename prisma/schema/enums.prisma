@@ -15,8 +15,6 @@ enum HouseType {
   OFFICE
 }
 
-
-
 enum BusinessCategory {
   RESTAURANT
   SHOP
@@ -25,10 +23,10 @@ enum BusinessCategory {
 }
 
 enum ApprovalStatus {
-  DRAFT
   PENDING
   APPROVED
   REJECTED
+  DRAFT
 }
 
 enum PaymentMethod {

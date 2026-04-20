@@ -1,65 +1,42 @@
 model Meal {
-  id String @id @default(uuid())
-
-  providerId String
-  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  categoryId String
-  category   Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-
-  // core info
-  name             String
-  subcategory      String?
-  shortDescription String
-  fullDescription  String?
-  portionSize      String?
-
-  // media
-  mainImageURL     String
-  galleryImageURLs String[]
-
-  // pricing
-  basePrice         Int
-  discountPrice     Int?
-  discountStartDate DateTime?
-  discountEndDate   DateTime?
-
-  // dietary and allergens
-  dietaryPreferences DietaryPreference[]
-  allergens          String[]
-
-  // nutrition (optional)
-  calories      Int?
-  protein       Float?
-  fat           Float?
-  carbohydrates Float?
-
-  // availability
-  isAvailable            Boolean @default(true)
-  isActive               Boolean @default(true)
-  preparationTimeMinutes Int     @default(15)
-
-  // flags
-  isBestseller Boolean @default(false)
-  isFeatured   Boolean @default(false)
-
-  // tags
-  tags String[]
-
-  // delivery
-  deliveryFee Int @default(0)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // relations
-  sizes         MealSize[]
-  spiceLevels   MealSpiceLevel[]
-  addOns        MealAddOn[]
-  removeOptions MealRemoveOption[]
-  ingredients   MealIngredient[]
-  reviews       Review[]
-  cartItems     CartItem[]
-  orderItems    OrderItem[]
+  id                     String              @id @default(uuid())
+  providerId             String
+  categoryId             String
+  name                   String
+  subcategory            String?
+  shortDescription       String
+  fullDescription        String?
+  portionSize            String?
+  mainImageURL           String
+  galleryImageURLs       String[]
+  basePrice              Int
+  discountPrice          Int?
+  dietaryPreferences     DietaryPreference[]
+  allergens              String[]
+  calories               Int?
+  protein                Float?
+  fat                    Float?
+  carbohydrates          Float?
+  isAvailable            Boolean             @default(true)
+  isActive               Boolean             @default(true)
+  preparationTimeMinutes Int                 @default(15)
+  isBestseller           Boolean             @default(false)
+  isFeatured             Boolean             @default(false)
+  tags                   String[]
+  deliveryFee            Int                 @default(0)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  discountEndDate        DateTime?
+  discountStartDate      DateTime?
+  cartItems              CartItem[]
+  category               Category            @relation(fields: [categoryId], references: [id])
+  provider               ProviderProfile     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  addOns                 MealAddOn[]
+  ingredients            MealIngredient[]
+  removeOptions          MealRemoveOption[]
+  sizes                  MealSize[]
+  spiceLevels            MealSpiceLevel[]
+  reviews                Review[]
 
   @@index([providerId])
   @@index([categoryId])

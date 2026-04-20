@@ -1,20 +1,16 @@
 model Cart {
-  id         String @id @default(uuid())
-  customerId String @unique
-  providerId String
-
-  subtotal       Decimal @default(0) @db.Decimal(12, 2)
-  deliveryFee    Decimal @default(0) @db.Decimal(12, 2)
-  discountAmount Decimal @default(0) @db.Decimal(12, 2)
-  totalAmount    Decimal @default(0) @db.Decimal(12, 2)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  customer CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  provider ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
-
-  items CartItem[]
+  id             String          @id @default(uuid())
+  customerId     String          @unique
+  providerId     String
+  subtotal       Decimal         @default(0) @db.Decimal(12, 2)
+  deliveryFee    Decimal         @default(0) @db.Decimal(12, 2)
+  discountAmount Decimal         @default(0) @db.Decimal(12, 2)
+  totalAmount    Decimal         @default(0) @db.Decimal(12, 2)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  items          CartItem[]
+  customer       CustomerProfile @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  provider       ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
 
   @@index([providerId])
   @@map("carts")

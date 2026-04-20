@@ -1,19 +1,16 @@
 model Review {
-  id String @id @default(uuid())
-
-  rating    Float 
-  feedback  String? 
-  images    String[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  mealId String
-  meal   Meal   @relation(fields: [mealId], references: [id], onDelete: Cascade)
-
+  id         String          @id @default(uuid())
+  rating     Float
+  feedback   String?
+  images     String[]
+  createdAt  DateTime        @default(now())
+  updatedAt  DateTime        @updatedAt
+  mealId     String
   userId     String
-  user       User            @relation(fields: [userId], references: [id])
   providerId String
+  meal       Meal            @relation(fields: [mealId], references: [id], onDelete: Cascade)
   provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  user       User            @relation(fields: [userId], references: [id])
 
   @@map("reviews")
 }
