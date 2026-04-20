@@ -6,9 +6,7 @@ import { PaymentController } from "./payment.controller";
 
 const router = Router();
 
-// ── Customer routes ───────────────────────────────────────────────────────────
 
-// Initiate SSLCommerz session for an order
 router.post(
   "/initiate/:orderId",
   authMiddleware(UserRole.CUSTOMER),
@@ -29,19 +27,9 @@ router.post(
   PaymentController.handleIPNNotification
 );
 
+//! ================== New added ==============================
 
 
-// Initiate
-router.post("/initiate/:orderId", paymentController.initiatePayment);
 
-// Callbacks from SSLCommerz
-router.post("/sslcommerz/success", paymentController.handleSuccess);
-router.post("/sslcommerz/fail", paymentController.handleFail);
-router.post("/sslcommerz/cancel", paymentController.handleCancel);
-
-// IPN (backup)
-router.post("/sslcommerz/ipn", paymentController.handleIPN);
-
-export const paymentRoutes = router;
 
 export const PaymentRoutes: Router = router;

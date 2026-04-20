@@ -18,7 +18,7 @@ const PLATFORM_FEE_PERCENT = 25;
 
 const generateTransactionId = (orderId: string): string => {
   const short = orderId.replace(/-/g, "").slice(0, 12).toUpperCase();
-  const rand = Math.random().toString(36).slice(2, 8).toUpperCase();
+  const rand  = Math.random().toString(36).slice(2, 8).toUpperCase();
   return `PLT-${short}-${rand}`;
 };
 
@@ -59,8 +59,8 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
     );
   }
 
-  const amount = Number(order.totalAmount);
-  const platformFeeAmount = Math.round(amount * PLATFORM_FEE_PERCENT) / 100;
+  const amount     = Number(order.totalAmount);
+  const platformFeeAmount  = Math.round(amount * PLATFORM_FEE_PERCENT) / 100;
   const providerShareAmount = amount - platformFeeAmount;
   const transactionId = generateTransactionId(orderId);
 
@@ -105,24 +105,24 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
 
   // build SSLCommerz payload
   const sslPayload = {
-    total_amount: amount,
-    currency: "BDT",
-    tran_id: transactionId,
+    total_amount:     amount,
+    currency:         "BDT",
+    tran_id:          transactionId,
 
-    success_url: `${envConfig.SSLCOMMERZ_SUCCESS_URL}?orderId=${orderId}`,
-    fail_url: `${envConfig.SSLCOMMERZ_FAIL_URL}?orderId=${orderId}`,
-    cancel_url: `${envConfig.SSLCOMMERZ_CANCEL_URL}?orderId=${orderId}`,
-
-    ipn_url: envConfig.SSLCOMMERZ_IPN_URL,
-    cus_name: order.customerName ?? order.customer.name,
-    cus_email: order.customer.email,
-    cus_phone: order.customerPhone ?? order.customer.phone ?? "N/A",
-    cus_add1: order.deliveryStreetAddress ?? "N/A",
-    cus_city: order.deliveryCity,
-    cus_country: "Bangladesh",
-    product_name: `Order ${order.orderNumber}`,
+    success_url:      envConfig.SSLCOMMERZ_SUCCESS_URL,
+    fail_url:         envConfig.SSLCOMMERZ_FAIL_URL,
+    cancel_url:       envConfig.SSLCOMMERZ_CANCEL_URL,
+    
+    ipn_url:          envConfig.SSLCOMMERZ_IPN_URL,
+    cus_name:         order.customerName ?? order.customer.name,
+    cus_email:        order.customer.email,
+    cus_phone:        order.customerPhone ?? order.customer.phone ?? "N/A",
+    cus_add1:         order.deliveryStreetAddress ?? "N/A",
+    cus_city:         order.deliveryCity,
+    cus_country:      "Bangladesh",
+    product_name:     `Order ${order.orderNumber}`,
     product_category: "Food",
-    product_profile: "general",
+    product_profile:  "general",
   };
 
   const sslResponse = await initSSLSession(sslPayload);
@@ -138,9 +138,9 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
   }
 
   return {
-    gatewayURL: sslResponse.GatewayPageURL,
+    gatewayURL:    sslResponse.GatewayPageURL,
     transactionId: paymentRecord.transactionId,
-    paymentId: paymentRecord.id,
+    paymentId:     paymentRecord.id,
     amount,
   };
 };
@@ -212,8 +212,8 @@ const handleIPNNotification = async (body: Record<string, any>) => {
       }
     }
 
-    const paidAmount = Number(payment.amount);
-    const platformFee = Number(payment.platformFeeAmount);
+    const paidAmount    = Number(payment.amount);
+    const platformFee   = Number(payment.platformFeeAmount);
     const providerShare = Number(payment.providerShareAmount);
 
     // Atomic transaction — update payment, order, provider stats
@@ -223,8 +223,8 @@ const handleIPNNotification = async (body: Record<string, any>) => {
       await tx.payment.update({
         where: { id: payment.id },
         data: {
-          status: "SUCCESS",
-          paidAt: new Date(),
+          status:  "SUCCESS",
+          paidAt:  new Date(),
           paymentGatewayData: body as Prisma.InputJsonValue,
         },
       });
@@ -233,7 +233,7 @@ const handleIPNNotification = async (body: Record<string, any>) => {
       await tx.order.update({
         where: { id: payment.orderId },
         data: {
-          status: "PLACED",
+          status:   "PLACED",
           placedAt: new Date(),
         },
       });
@@ -242,12 +242,12 @@ const handleIPNNotification = async (body: Record<string, any>) => {
       await tx.providerProfile.update({
         where: { id: payment.providerId },
         data: {
-          totalGrossRevenue: { increment: paidAmount },
-          totalPlatformFee: { increment: platformFee },
+          totalGrossRevenue:    { increment: paidAmount    },
+          totalPlatformFee:     { increment: platformFee   },
           totalProviderEarning: { increment: providerShare },
           // currentPayableAmount is what admin owes the provider
           currentPayableAmount: { increment: providerShare },
-          totalOrdersCompleted: { increment: 1 },
+          totalOrdersCompleted: { increment: 1             },
         },
       });
 
@@ -275,7 +275,7 @@ const handleIPNNotification = async (body: Record<string, any>) => {
     await prisma.payment.update({
       where: { id: payment.id },
       data: {
-        status: newStatus,
+        status:   newStatus,
         failedAt: new Date(),
         paymentGatewayData: body as Prisma.InputJsonValue,
       },
@@ -308,17 +308,17 @@ const getPaymentStatus = async (userId: string, orderId: string) => {
   const payment = order.payments[0] ?? null;
 
   return {
-    orderId: order.id,
+    orderId:     order.id,
     orderNumber: order.orderNumber,
     orderStatus: order.status,
     payment: payment
       ? {
-        id: payment.id,
-        status: payment.status,
-        amount: Number(payment.amount),
-        transactionId: payment.transactionId,
-        paidAt: payment.paidAt,
-      }
+          id:            payment.id,
+          status:        payment.status,
+          amount:        Number(payment.amount),
+          transactionId: payment.transactionId,
+          paidAt:        payment.paidAt,
+        }
       : null,
   };
 };
@@ -415,9 +415,9 @@ const settleProviderPayment = async (
       where: { id: paymentId },
       data: {
         providerSettlementStatus: "PAID",
-        providerSettledAt: new Date(),
-        providerSettledBy: adminId,
-        providerSettlementNote: note ?? null,
+        providerSettledAt:        new Date(),
+        providerSettledBy:        adminId,
+        providerSettlementNote:   note ?? null,
       },
     });
 
@@ -477,9 +477,9 @@ const bulkSettleProvider = async (
       },
       data: {
         providerSettlementStatus: "PAID",
-        providerSettledAt: new Date(),
-        providerSettledBy: adminId,
-        providerSettlementNote: note ?? "Bulk settlement",
+        providerSettledAt:        new Date(),
+        providerSettledBy:        adminId,
+        providerSettlementNote:   note ?? "Bulk settlement",
       },
     });
 
@@ -493,7 +493,7 @@ const bulkSettleProvider = async (
   });
 
   return {
-    settledCount: pendingPayments.length,
+    settledCount:  pendingPayments.length,
     totalSettled,
   };
 };
