@@ -17,6 +17,7 @@ import {
   markProviderPaidSchema,
   updateProviderStatusSchema,
 } from "./admin.validation";
+import { PaymentController } from "../payment/payment.controller";
 
 const router = Router();
 
@@ -121,5 +122,15 @@ router.patch(
   validateRequest(updateProviderStatusSchema),
   AdminController.updateProviderStatus
 );
+
+
+// GET /api/v1/admins/settlements
+router.get("/settlements", PaymentController.getPaymentsForAdmin);
+
+// PATCH /api/v1/admins/settlements/:paymentId
+router.patch("/settlements/:paymentId", PaymentController.settleProviderPayment);
+
+// PATCH /api/v1/admins/settlements/bulk/:providerId
+router.patch("/settlements/bulk/:providerId", PaymentController.bulkSettleProvider);
 
 export const AdminRoutes: Router = router;
