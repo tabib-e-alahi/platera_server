@@ -720,7 +720,7 @@ const getPaymentDetail = async (paymentId: string) => {
       },
       order: {
         include: {
-          items: true,
+          orderItems: true,
         },
       },
     },
@@ -826,7 +826,7 @@ const getOrderDetail = async (orderId: string) => {
           phone: true,
         },
       },
-      items: true,
+      orderItems: true,
       payments: true,
     },
   });
@@ -934,6 +934,108 @@ const markPaymentAsProviderPaid = async (
   return updated;
 };
 
+const bulkSettleProvider = async (
+  providerId: string,
+  adminId: string,
+  note?: string
+) => {
+  const provider = await prisma.providerProfile.findUnique({
+    where: { id: providerId },
+    select: {
+      id: true,
+      businessName: true,
+      currentPayableAmount: true,
+    },
+  });
+
+  if (!provider) {
+    throw new NotFoundError("Provider not found.");
+  }
+
+  if (Number(provider.currentPayableAmount) <= 0) {
+    throw new BadRequestError("Provider has no pending settlements.");
+  }
+
+  const pendingPayments = await prisma.payment.findMany({
+    where: {
+      providerId,
+      status: "SUCCESS",
+      providerSettlementStatus: "PENDING",
+    },
+    select: {
+      id: true,
+      providerShareAmount: true,
+    },
+  });
+
+  if (pendingPayments.length === 0) {
+    throw new BadRequestError("No pending payments found for this provider.");
+  }
+
+  const totalSettledAmount = pendingPayments.reduce(
+    (sum, payment) => sum + Number(payment.providerShareAmount),
+    0
+  );
+
+  const updatedPayments = await prisma.$transaction(async (tx) => {
+    // Update all pending payments
+    await tx.payment.updateMany({
+      where: {
+        providerId,
+        status: "SUCCESS",
+        providerSettlementStatus: "PENDING",
+      },
+      data: {
+        providerSettlementStatus: "PAID",
+        providerSettledAt: new Date(),
+        providerSettledBy: adminId,
+        providerSettlementNote: note ?? null,
+      },
+    });
+
+    // Update provider's payable amount
+    await tx.providerProfile.update({
+      where: { id: providerId },
+      data: {
+        currentPayableAmount: {
+          decrement: totalSettledAmount,
+        },
+        lastPaymentAt: new Date(),
+      },
+    });
+
+    // Return the updated payments
+    return tx.payment.findMany({
+      where: {
+        providerId,
+        status: "SUCCESS",
+        providerSettlementStatus: "PAID",
+        providerSettledBy: adminId,
+      },
+      include: {
+        order: {
+          select: {
+            id: true,
+            orderNumber: true,
+          },
+        },
+      },
+      orderBy: {
+        providerSettledAt: "desc",
+      },
+    });
+  });
+
+  return {
+    provider: {
+      id: provider.id,
+      businessName: provider.businessName,
+    },
+    settledPayments: updatedPayments,
+    totalSettledAmount,
+    paymentCount: updatedPayments.length,
+  };
+};
 const updateProviderStatus = async (
   profileId: string,
   adminId: string,
@@ -1025,5 +1127,6 @@ export const AdminService = {
   getOrderDetail,
   getProviderPayablesSummary,
   markPaymentAsProviderPaid,
+  bulkSettleProvider,
   updateProviderStatus
-};
+}

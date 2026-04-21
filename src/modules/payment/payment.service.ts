@@ -3,9 +3,9 @@ import envConfig from "../../config";
 import { AppError } from "../../errors/AppError";
 import axios from "axios";
 import { prisma } from "../../lib/prisma";
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "crypto";
 
-const backendBaseUrl = envConfig.BETTER_AUTH_URL;
+const backendBaseUrl = envConfig.BACKEND_LOCAL_HOST;
 const frontendBaseUrl = envConfig.NODE_ENV === 'production' ? envConfig.frontend_production_host : envConfig.frontend_local_host;
 
 
@@ -65,7 +65,7 @@ const finalizeSuccessPayment = async (payment: any, validation: any) => {
     });
 
     if (!order) {
-      throw new AppError(status.NOT_FOUND, "Order not found.");
+      throw new AppError("Order not found.", status.NOT_FOUND);
     }
 
     await tx.order.update({
@@ -96,7 +96,7 @@ const finalizeSuccessPayment = async (payment: any, validation: any) => {
     // provider revenue update
     await tx.providerProfile.update({
       where: {
-        userId: order.providerId,
+        id: order.providerId,
       },
       data: {
         currentPayableAmount: {
@@ -170,19 +170,25 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
 
   if (!store_id || !store_passwd) {
     throw new AppError(
-      status.INTERNAL_SERVER_ERROR,
-      "SSLCommerz credentials are missing."
+      "SSLCommerz credentials are missing.",
+      status.INTERNAL_SERVER_ERROR
     );
   }
 
-  const transactionId = `PLATERA_${uuidv4()}`;
+  const amount = Number(order.totalAmount);
+  const platformFeeAmount = amount * 0.25;
+  const providerShareAmount = amount * 0.75;
+
+  const transactionId = `PLATERA_${randomUUID()}`;
 
   let payment = await prisma.payment.create({
     data: {
       orderId: order.id,
       customerId: order.customerId,
       providerId: order.providerId,
-      amount: Number(order.totalAmount),
+      amount,
+      platformFeeAmount,
+      providerShareAmount,
       transactionId,
       status: "PENDING",
       gatewayName: "SSLCommerz",
@@ -200,7 +206,7 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
     fail_url: `${backendBaseUrl}/api/v1/payments/sslcommerz/fail`,
     cancel_url: `${backendBaseUrl}/api/v1/payments/sslcommerz/cancel`,
     ipn_url:
-      envConfig.sslcommerz_ipn_url ||
+      envConfig.SSLCOMMERZ_IPN_URL ||
       `${backendBaseUrl}/api/v1/payments/sslcommerz/ipn`,
 
     shipping_method: "NO",
@@ -209,23 +215,25 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
     product_profile: "general",
 
     cus_name:
+      order.customerName ||
       order.customer?.name ||
       order.customer?.email ||
       "Customer",
     cus_email: order.customer?.email || "customer@example.com",
-    cus_add1: order.deliveryAddress || "Dhaka",
-    cus_city: order.city || "Dhaka",
-    cus_postcode: "1200",
+    cus_add1: `${order.deliveryStreetAddress || ""} ${order.deliveryHouseNumber || ""}`.trim() || "Dhaka",
+    cus_city: order.deliveryCity || "Dhaka",
+    cus_postcode: order.deliveryPostalCode || "1200",
     cus_country: "Bangladesh",
-    cus_phone: order.phone || "01700000000",
+    cus_phone: order.customerPhone || "01700000000",
 
     ship_name:
+      order.customerName ||
       order.customer?.name ||
       order.customer?.email ||
       "Customer",
-    ship_add1: order.deliveryAddress || "Dhaka",
-    ship_city: order.city || "Dhaka",
-    ship_postcode: "1200",
+    ship_add1: `${order.deliveryStreetAddress || ""} ${order.deliveryHouseNumber || ""}`.trim() || "Dhaka",
+    ship_city: order.deliveryCity || "Dhaka",
+    ship_postcode: order.deliveryPostalCode || "1200",
     ship_country: "Bangladesh",
 
     value_a: order.id,
@@ -257,8 +265,8 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
       });
 
       throw new AppError(
-        status.BAD_REQUEST,
-        responseData?.failedreason || "Failed to initiate SSLCommerz payment."
+        responseData?.failedreason || "Failed to initiate SSLCommerz payment.",
+        status.BAD_REQUEST
       );
     }
 
@@ -291,10 +299,10 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
     });
 
     throw new AppError(
-      status.BAD_REQUEST,
       error?.response?.data?.failedreason ||
         error?.message ||
-        "Failed to initiate payment."
+        "Failed to initiate payment.",
+      status.BAD_REQUEST
     );
   }
 };
@@ -307,7 +315,7 @@ const handleSuccess = async (payload: any) => {
   });
 
   if (!payment) {
-    throw new AppError(status.NOT_FOUND, "Payment not found.");
+    throw new AppError("Payment not found.", status.NOT_FOUND);
   }
 
   const validation = await validateSSLPayment(val_id);
@@ -317,22 +325,22 @@ const handleSuccess = async (payload: any) => {
     validation.status !== "VALIDATED"
   ) {
     throw new AppError(
-      status.BAD_REQUEST,
-      "Payment validation failed."
+      "Payment validation failed.",
+      status.BAD_REQUEST
     );
   }
 
   if (validation.tran_id !== tran_id) {
     throw new AppError(
-      status.BAD_REQUEST,
-      "Transaction ID mismatch."
+      "Transaction ID mismatch.",
+      status.BAD_REQUEST
     );
   }
 
   if (Number(validation.amount) !== Number(payment.amount)) {
     throw new AppError(
-      status.BAD_REQUEST,
-      "Paid amount does not match order amount."
+      "Paid amount does not match order amount.",
+      status.BAD_REQUEST
     );
   }
 
@@ -349,7 +357,7 @@ const handleFail = async (payload: any) => {
   });
 
   if (!payment) {
-    throw new AppError(status.NOT_FOUND, "Payment not found.");
+    throw new AppError("Payment not found.", status.NOT_FOUND);
   }
 
   if (payment.status !== "SUCCESS") {
@@ -374,7 +382,7 @@ const handleCancel = async (payload: any) => {
   });
 
   if (!payment) {
-    throw new AppError(status.NOT_FOUND, "Payment not found.");
+    throw new AppError("Payment not found.", status.NOT_FOUND);
   }
 
   if (payment.status !== "SUCCESS") {
@@ -429,7 +437,7 @@ const getPaymentStatus = async (orderId: string, userId: string) => {
   });
 
   if (!order) {
-    throw new AppError(status.NOT_FOUND, "Order not found.");
+    throw new AppError("Order not found.", status.NOT_FOUND);
   }
 
   return {

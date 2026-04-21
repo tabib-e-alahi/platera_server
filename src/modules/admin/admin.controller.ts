@@ -362,6 +362,30 @@ const markPaymentAsProviderPaid = async (
   } catch (error) {
     next(error);
   }
+}
+const bulkSettleProvider = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { note } = req.body as TMarkProviderPaid;
+    const result = await AdminService.bulkSettleProvider(
+      req.params.providerId as string,
+      req.user.id,
+      note
+    );
+
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Bulk settlement completed successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+
 };
 
 const updateProviderStatus = async (
@@ -407,5 +431,6 @@ export const AdminController = {
   getPaymentDetail,
   getProviderPayablesSummary,
   markPaymentAsProviderPaid,
-  updateProviderStatus
-};
+  bulkSettleProvider,
+  updateProviderStatus,
+}

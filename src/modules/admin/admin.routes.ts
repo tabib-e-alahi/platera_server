@@ -1,7 +1,6 @@
 // src/modules/admin/admin.routes.ts
 
 import { Router } from "express";
-import { AdminController } from "./admin.controller";
 import authMiddleware, {
   UserRole,
 } from "../../middlewares/auth.middleware";
@@ -18,6 +17,7 @@ import {
   updateProviderStatusSchema,
 } from "./admin.validation";
 import { PaymentController } from "../payment/payment.controller";
+import { AdminController } from "./admin.controller";
 
 const router = Router();
 
@@ -125,12 +125,12 @@ router.patch(
 
 
 // GET /api/v1/admins/settlements
-router.get("/settlements", PaymentController.getPaymentsForAdmin);
+router.get("/settlements", AdminController.getAllPayments);
 
 // PATCH /api/v1/admins/settlements/:paymentId
-router.patch("/settlements/:paymentId", PaymentController.settleProviderPayment);
+router.patch("/settlements/:paymentId", AdminController.markPaymentAsProviderPaid);
 
 // PATCH /api/v1/admins/settlements/bulk/:providerId
-router.patch("/settlements/bulk/:providerId", PaymentController.bulkSettleProvider);
+router.patch("/settlements/bulk/:providerId", AdminController.bulkSettleProvider);
 
 export const AdminRoutes: Router = router;

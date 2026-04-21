@@ -4,6 +4,7 @@ import { NextFunction, Request, Response } from "express";
 import status from "http-status";
 import { sendResponse } from "../../utils/sendResponse";
 import { PaymentService } from "./payment.service";
+import envConfig from "../../config";
 
 // POST /api/v1/payments/initiate/:orderId
 const initiateSSLPayment = async (
@@ -149,7 +150,7 @@ const handleSuccess = async (req: Request, res: Response) => {
   const result = await PaymentService.handleSuccess(req.body);
 
   return res.redirect(
-    `${process.env.FRONTEND_PROD_HOST}/checkout/payment/success?orderId=${result.orderId}`
+    `${envConfig.frontend_local_host}/checkout/payment/success?orderId=${result.orderId}`
   );
 };
 
@@ -157,7 +158,7 @@ const handleFail = async (req: Request, res: Response) => {
   const result = await PaymentService.handleFail(req.body);
 
   return res.redirect(
-    `${process.env.FRONTEND_PROD_HOST}/checkout/payment/fail?orderId=${result.orderId}`
+    `${envConfig.frontend_local_host}/checkout/payment/fail?orderId=${result.orderId}`
   );
 };
 
@@ -165,7 +166,7 @@ const handleCancel = async (req: Request, res: Response) => {
   const result = await PaymentService.handleCancel(req.body);
 
   return res.redirect(
-    `${process.env.FRONTEND_PROD_HOST}/checkout/payment/cancel?orderId=${result.orderId}`
+    `${envConfig.frontend_local_host}/checkout/payment/cancel?orderId=${result.orderId}`
   );
 };
 

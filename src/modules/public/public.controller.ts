@@ -21,8 +21,13 @@ const getRestaurants = async (req: Request, res: Response, next: NextFunction) =
   try {
     const { search, city, categoryId, subcategory, businessCategory, page = "1", limit = "12" } = req.query as Record<string, string>;
     const result = await PublicService.getRestaurants({
-      search, city, categoryId, subcategory, businessCategory,
-      page: parseInt(page), limit: parseInt(limit),
+      ...(search && { search }),
+      ...(city && { city }),
+      ...(categoryId && { categoryId }),
+      ...(subcategory && { subcategory }),
+      ...(businessCategory && { businessCategory }),
+      page: parseInt(page),
+      limit: parseInt(limit),
     });
     sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Restaurants fetched successfully.", data: result });
   } catch (error) { next(error); }
@@ -32,7 +37,13 @@ const getRestaurantById = async (req: Request, res: Response, next: NextFunction
   try {
     const { id } = req.params;
     const { search, categoryId, subcategory, dietary, sortBy } = req.query as Record<string, string>;
-    const result = await PublicService.getRestaurantById(id, { search, categoryId, subcategory, dietary, sortBy });
+    const result = await PublicService.getRestaurantById(id as string, {
+      ...(search && { search }),
+      ...(categoryId && { categoryId }),
+      ...(subcategory && { subcategory }),
+      ...(dietary && { dietary }),
+      ...(sortBy && { sortBy }),
+    });
     if (!result) {
       sendResponse(res, { httpStatusCode: status.NOT_FOUND, success: false, message: "Restaurant not found.", data: null });
       return;

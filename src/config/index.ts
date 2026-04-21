@@ -9,6 +9,7 @@ const envConfig = {
   port: Number(process.env.PORT) || 5000,
   // bcrypt_salt_rounds: Number(process.env.BCRYPT_SALT_ROUND),
   database_url: process.env.DATABASE_URL,
+  BACKEND_LOCAL_HOST: process.env.BACKEND_LOCAL_HOST as string,
   frontend_local_host: process.env.FRONTEND_LOCAL_HOST as string,
   frontend_production_host: process.env.FRONTEND_PRODUCTION_HOST as string,
 
