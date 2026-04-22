@@ -2,7 +2,6 @@
 
 import { prisma } from "../../lib/prisma";
 import { auth } from "../../lib/auth";
-
 import {
   BadRequestError,
   ConflictError,
@@ -17,10 +16,13 @@ import {
   TUpdateProviderStatus,
   TUserListQuery,
 } from "./admin.validation";
-import { sendProviderApprovedEmail, sendProviderRejectedEmail } from "../../utils/emailTemplates.utils";
+import {
+  sendProviderApprovedEmail,
+  sendProviderRejectedEmail,
+} from "../../utils/emailTemplates.utils";
 import { Prisma } from "../../../generated/prisma/client";
 
-// ─── Provider approval management ────────────────────────────────────────────
+/* ─── Provider management ────────────────────────────────────────────────── */
 
 const getPendingProviders = async (query: TProviderListQuery) => {
   const { page, limit, search } = query;
@@ -32,18 +34,8 @@ const getPendingProviders = async (query: TProviderListQuery) => {
       isDeleted: false,
       ...(search && {
         OR: [
-          {
-            name: {
-              contains: search,
-              mode: "insensitive" as const,
-            },
-          },
-          {
-            email: {
-              contains: search,
-              mode: "insensitive" as const,
-            },
-          },
+          { name:  { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
         ],
       }),
     },
@@ -54,12 +46,7 @@ const getPendingProviders = async (query: TProviderListQuery) => {
       where,
       include: {
         user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            createdAt: true,
-          },
+          select: { id: true, name: true, email: true, createdAt: true },
         },
       },
       orderBy: { createdAt: "asc" }, // oldest first — fairness
@@ -71,12 +58,7 @@ const getPendingProviders = async (query: TProviderListQuery) => {
 
   return {
     providers,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
   };
 };
 
@@ -84,24 +66,14 @@ const getAllProviders = async (query: TProviderListQuery) => {
   const { page, limit, search, approvalStatus } = query;
   const skip = (page - 1) * limit;
 
-  const where = {
+  const where: Prisma.ProviderProfileWhereInput = {
     ...(approvalStatus && { approvalStatus }),
     user: {
       isDeleted: false,
       ...(search && {
         OR: [
-          {
-            name: {
-              contains: search,
-              mode: "insensitive" as const,
-            },
-          },
-          {
-            email: {
-              contains: search,
-              mode: "insensitive" as const,
-            },
-          },
+          { name:  { contains: search, mode: "insensitive" as const } },
+          { email: { contains: search, mode: "insensitive" as const } },
         ],
       }),
     },
@@ -113,13 +85,10 @@ const getAllProviders = async (query: TProviderListQuery) => {
       include: {
         user: {
           select: {
-            id: true,
-            name: true,
-            email: true,
-            status: true,
-            createdAt: true,
+            id: true, name: true, email: true, status: true, createdAt: true,
           },
         },
+        _count: { select: { meals: true, orders: true } },
       },
       orderBy: { createdAt: "desc" },
       skip,
@@ -129,13 +98,12 @@ const getAllProviders = async (query: TProviderListQuery) => {
   ]);
 
   return {
-    providers,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+    providers: providers.map(p => ({
+      ...p,
+      mealCount:  p._count.meals,
+      orderCount: p._count.orders,
+    })),
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
   };
 };
 
@@ -145,96 +113,47 @@ const getProviderDetail = async (profileId: string) => {
     include: {
       user: {
         select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          image: true,
-          status: true,
-          isDeleted: true,
-          createdAt: true,
-          emailVerified: true,
+          id: true, name: true, email: true, phone: true, image: true,
+          status: true, isDeleted: true, createdAt: true, emailVerified: true,
         },
       },
-      meals: {
-        select: {
-          id: true,
-        },
-      },
-      orders: {
-        select: {
-          id: true,
-        },
-      },
+      meals:    { select: { id: true } },
+      orders:   { select: { id: true } },
       payments: {
         select: {
-          id: true,
-          amount: true,
-          status: true,
-          providerSettlementStatus: true,
+          id: true, amount: true, status: true, providerSettlementStatus: true,
         },
       },
     },
   });
 
-  if (!profile) {
-    throw new NotFoundError("Provider profile not found.");
-  }
+  if (!profile) throw new NotFoundError("Provider profile not found.");
 
   return {
     ...profile,
-    mealCount: profile.meals.length,
-    orderCount: profile.orders.length,
+    mealCount:    profile.meals.length,
+    orderCount:   profile.orders.length,
     paymentCount: profile.payments.length,
   };
 };
 
-const approveProvider = async (
-  profileId: string,
-  adminId: string
-) => {
+const approveProvider = async (profileId: string, adminId: string) => {
   const profile = await prisma.providerProfile.findUnique({
     where: { id: profileId },
     include: {
       user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          status: true,
-          isDeleted: true,
-        },
+        select: { id: true, name: true, email: true, status: true, isDeleted: true },
       },
     },
   });
 
-  if (!profile) {
-    throw new NotFoundError("Provider profile not found.");
-  }
+  if (!profile)             throw new NotFoundError("Provider profile not found.");
+  if (profile.user.isDeleted)              throw new ForbiddenError("This provider account has been deleted.");
+  if (profile.user.status === "SUSPENDED") throw new ForbiddenError("This provider account is suspended.");
+  if (profile.approvalStatus === "APPROVED") throw new ConflictError("Provider is already approved.");
+  if (profile.approvalStatus !== "PENDING")  throw new BadRequestError("Only PENDING profiles can be approved.");
 
-  if (profile.user.isDeleted) {
-    throw new ForbiddenError(
-      "This provider account has been deleted."
-    );
-  }
-
-  if (profile.user.status === "SUSPENDED") {
-    throw new ForbiddenError(
-      "This provider account is currently suspended."
-    );
-  }
-
-  if (profile.approvalStatus === "APPROVED") {
-    throw new ConflictError("This provider is already approved.");
-  }
-
-  if (profile.approvalStatus !== "PENDING") {
-    throw new BadRequestError(
-      "Only profiles with PENDING status can be approved."
-    );
-  }
-
-  const updatedProfile = await prisma.providerProfile.update({
+  const updated = await prisma.providerProfile.update({
     where: { id: profileId },
     data: {
       approvalStatus: "APPROVED",
@@ -244,12 +163,8 @@ const approveProvider = async (
     },
   });
 
-  await sendProviderApprovedEmail(
-    profile.user.name,
-    profile.user.email
-  );
-
-  return updatedProfile;
+  await sendProviderApprovedEmail(profile.user.name, profile.user.email);
+  return updated;
 };
 
 const rejectProvider = async (
@@ -261,40 +176,17 @@ const rejectProvider = async (
     where: { id: profileId },
     include: {
       user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          status: true,
-          isDeleted: true,
-        },
+        select: { id: true, name: true, email: true, status: true, isDeleted: true },
       },
     },
   });
 
-  if (!profile) {
-    throw new NotFoundError("Provider profile not found.");
-  }
+  if (!profile)                            throw new NotFoundError("Provider profile not found.");
+  if (profile.user.isDeleted)              throw new ForbiddenError("This provider account has been deleted.");
+  if (profile.approvalStatus === "REJECTED") throw new ConflictError("Provider is already rejected.");
+  if (profile.approvalStatus !== "PENDING")  throw new BadRequestError("Only PENDING profiles can be rejected.");
 
-  if (profile.user.isDeleted) {
-    throw new ForbiddenError(
-      "This provider account has been deleted."
-    );
-  }
-
-  if (profile.approvalStatus === "REJECTED") {
-    throw new ConflictError(
-      "This provider profile is already rejected."
-    );
-  }
-
-  if (profile.approvalStatus !== "PENDING") {
-    throw new BadRequestError(
-      "Only profiles with PENDING status can be rejected."
-    );
-  }
-
-  const updatedProfile = await prisma.providerProfile.update({
+  const updated = await prisma.providerProfile.update({
     where: { id: profileId },
     data: {
       approvalStatus: "REJECTED",
@@ -304,41 +196,75 @@ const rejectProvider = async (
     },
   });
 
-  await sendProviderRejectedEmail(
-    profile.user.name,
-    profile.user.email,
-    rejectionReason
-  );
-
-  return updatedProfile;
+  await sendProviderRejectedEmail(profile.user.name, profile.user.email, rejectionReason);
+  return updated;
 };
 
-// ─── User management ──────────────────────────────────────────────────────────
+const updateProviderStatus = async (
+  profileId: string,
+  adminId: string,
+  payload: TUpdateProviderStatus
+) => {
+  const profile = await prisma.providerProfile.findUnique({
+    where: { id: profileId },
+    include: {
+      user: {
+        select: { id: true, name: true, email: true, status: true, isDeleted: true },
+      },
+    },
+  });
+
+  if (!profile)             throw new NotFoundError("Provider profile not found.");
+  if (profile.user.isDeleted) throw new ForbiddenError("This provider account has been deleted.");
+
+  const { approvalStatus, userStatus, rejectionReason } = payload;
+
+  const updated = await prisma.$transaction(async (tx) => {
+    if (userStatus) {
+      await tx.user.update({
+        where: { id: profile.user.id },
+        data: { status: userStatus },
+      });
+    }
+    if (approvalStatus) {
+      await tx.providerProfile.update({
+        where: { id: profileId },
+        data: {
+          approvalStatus,
+          rejectionReason: approvalStatus === "REJECTED" ? (rejectionReason ?? null) : null,
+          reviewedBy: adminId,
+          reviewedAt: new Date(),
+        },
+      });
+    }
+    return tx.providerProfile.findUnique({
+      where: { id: profileId },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, phone: true, status: true },
+        },
+      },
+    });
+  });
+
+  return updated;
+};
+
+/* ─── User management ────────────────────────────────────────────────────── */
 
 const getAllUsers = async (query: TUserListQuery) => {
   const { page, limit, role, status, search } = query;
   const skip = (page - 1) * limit;
 
-  const where = {
+  const where: Prisma.UserWhereInput = {
     isDeleted: false,
-    // exclude super admins from regular admin view
     NOT: { role: "SUPER_ADMIN" as const },
-    ...(role && { role }),
+    ...(role   && { role   }),
     ...(status && { status }),
     ...(search && {
       OR: [
-        {
-          name: {
-            contains: search,
-            mode: "insensitive" as const,
-          },
-        },
-        {
-          email: {
-            contains: search,
-            mode: "insensitive" as const,
-          },
-        },
+        { name:  { contains: search, mode: "insensitive" as const } },
+        { email: { contains: search, mode: "insensitive" as const } },
       ],
     }),
   };
@@ -347,19 +273,10 @@ const getAllUsers = async (query: TUserListQuery) => {
     prisma.user.findMany({
       where,
       select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        status: true,
-        emailVerified: true,
-        createdAt: true,
+        id: true, name: true, email: true, role: true,
+        status: true, emailVerified: true, createdAt: true,
         providerProfile: {
-          select: {
-            id: true,
-            businessName: true,
-            approvalStatus: true,
-          },
+          select: { id: true, businessName: true, approvalStatus: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -371,12 +288,7 @@ const getAllUsers = async (query: TUserListQuery) => {
 
   return {
     users,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
   };
 };
 
@@ -384,179 +296,103 @@ const getUserDetail = async (userId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: userId, isDeleted: false },
     select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      status: true,
-      phone: true,
-      image: true,
-      emailVerified: true,
-      createdAt: true,
-      updatedAt: true,
-      providerProfile: true,
+      id: true, name: true, email: true, role: true, status: true,
+      phone: true, image: true, emailVerified: true, createdAt: true,
+      updatedAt: true, providerProfile: true,
     },
   });
 
-  if (!user) {
-    throw new NotFoundError("User not found.");
-  }
-
+  if (!user) throw new NotFoundError("User not found.");
   return user;
 };
 
-const suspendUser = async (
-  targetUserId: string,
-  adminId: string,
-  reason?: string
-) => {
+const suspendUser = async (targetUserId: string, adminId: string, reason?: string) => {
   const user = await prisma.user.findUnique({
     where: { id: targetUserId },
-    select: {
-      id: true,
-      role: true,
-      status: true,
-      isDeleted: true,
-    },
+    select: { id: true, role: true, status: true, isDeleted: true },
   });
 
-  if (!user) {
-    throw new NotFoundError("User not found.");
+  if (!user)          throw new NotFoundError("User not found.");
+  if (user.isDeleted) throw new ForbiddenError("Account has been deleted.");
+  if (user.status === "SUSPENDED") throw new ConflictError("User is already suspended.");
+  if (["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
+    throw new ForbiddenError("Admin accounts cannot be suspended through this endpoint.");
   }
 
-  if (user.isDeleted) {
-    throw new ForbiddenError("This account has been deleted.");
-  }
-
-  if (user.status === "SUSPENDED") {
-    throw new ConflictError("This user is already suspended.");
-  }
-
-  // admin cannot suspend another admin or super admin
-  if (
-    user.role === "ADMIN" ||
-    user.role === "SUPER_ADMIN"
-  ) {
-    throw new ForbiddenError(
-      "Admin accounts cannot be suspended through this endpoint."
-    );
-  }
-
-  const updatedUser = await prisma.user.update({
+  return prisma.user.update({
     where: { id: targetUserId },
     data: { status: "SUSPENDED" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      status: true,
-    },
+    select: { id: true, name: true, email: true, role: true, status: true },
   });
-
-  return updatedUser;
 };
 
-const reactivateUser = async (
-  targetUserId: string,
-  adminId: string
-) => {
+const reactivateUser = async (targetUserId: string, adminId: string) => {
   const user = await prisma.user.findUnique({
     where: { id: targetUserId },
-    select: {
-      id: true,
-      role: true,
-      status: true,
-      isDeleted: true,
-    },
+    select: { id: true, role: true, status: true, isDeleted: true },
   });
 
-  if (!user) {
-    throw new NotFoundError("User not found.");
-  }
+  if (!user)          throw new NotFoundError("User not found.");
+  if (user.isDeleted) throw new ForbiddenError("Account has been deleted.");
+  if (user.status === "ACTIVE") throw new ConflictError("User is already active.");
 
-  if (user.isDeleted) {
-    throw new ForbiddenError("This account has been deleted.");
-  }
-
-  if (user.status === "ACTIVE") {
-    throw new ConflictError("This user is already active.");
-  }
-
-  const updatedUser = await prisma.user.update({
+  return prisma.user.update({
     where: { id: targetUserId },
     data: { status: "ACTIVE" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      status: true,
-    },
+    select: { id: true, name: true, email: true, role: true, status: true },
   });
-
-  return updatedUser;
 };
 
-// ─── Super admin only ─────────────────────────────────────────────────────────
+const toggleUserStatus = async (userId: string, adminId: string) => {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, status: true, role: true, isDeleted: true },
+  });
 
-const getAllAdmins = async () => {
-  const admins = await prisma.user.findMany({
-    where: {
-      role: { in: ["ADMIN", "SUPER_ADMIN"] },
-      isDeleted: false,
-    },
+  if (!user)          throw new NotFoundError("User not found.");
+  if (user.isDeleted) throw new ForbiddenError("Account has been deleted.");
+  if (["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
+    throw new ForbiddenError("Admin accounts cannot be toggled through this endpoint.");
+  }
+
+  const newStatus = user.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
+  return prisma.user.update({
+    where: { id: userId },
+    data: { status: newStatus },
+    select: { id: true, name: true, email: true, role: true, status: true },
+  });
+};
+
+/* ─── Super admin ────────────────────────────────────────────────────────── */
+
+const getAllAdmins = async () =>
+  prisma.user.findMany({
+    where: { role: { in: ["ADMIN", "SUPER_ADMIN"] }, isDeleted: false },
     select: {
-      id: true,
-      name: true,
-      email: true,
-      role: true,
-      status: true,
-      emailVerified: true,
-      createdAt: true,
+      id: true, name: true, email: true, role: true,
+      status: true, emailVerified: true, createdAt: true,
     },
     orderBy: { createdAt: "asc" },
   });
 
-  return admins;
-};
-
-const createAdmin = async (
-  payload: TCreateAdmin,
-  createdById: string
-) => {
+const createAdmin = async (payload: TCreateAdmin, createdById: string) => {
   const existing = await prisma.user.findUnique({
     where: { email: payload.email },
     select: { id: true, isDeleted: true },
   });
 
   if (existing) {
-    if (existing.isDeleted) {
-      throw new ForbiddenError(
-        "This email is associated with a deleted account."
-      );
-    }
-    throw new ConflictError(
-      "An account with this email already exists."
-    );
+    if (existing.isDeleted) throw new ForbiddenError("Email is associated with a deleted account.");
+    throw new ConflictError("An account with this email already exists.");
   }
 
   const result = await auth.api.signUpEmail({
-    body: {
-      name: payload.name,
-      email: payload.email,
-      password: payload.password,
-    },
-    headers: new Headers({
-      "x-intended-role": "ADMIN",
-    }),
+    body: { name: payload.name, email: payload.email, password: payload.password },
+    headers: new Headers({ "x-intended-role": "ADMIN" }),
   });
 
-  if (!result.user) {
-    throw new BadRequestError("Failed to create admin account.");
-  }
+  if (!result.user) throw new BadRequestError("Failed to create admin account.");
 
-  // admins do not need email verification
   await prisma.user.update({
     where: { id: result.user.id },
     data: { emailVerified: true },
@@ -565,7 +401,7 @@ const createAdmin = async (
   return result.user;
 };
 
-// ─── Dashboard stats ──────────────────────────────────────────────────────────
+/* ─── Dashboard stats ────────────────────────────────────────────────────── */
 
 const getDashboardStats = async () => {
   const [
@@ -576,28 +412,60 @@ const getDashboardStats = async () => {
     approvedProviders,
     rejectedProviders,
     suspendedUsers,
+    totalOrders,
+    placedOrders,
+    activeOrders,
+    deliveredOrders,
+    cancelledOrders,
+    grossRevenue,
+    totalFeeAgg,
+    totalProviderShareAgg,
+    paidToProvidersAgg,
+    unpaidToProvidersAgg,
+    monthlyRevenue,
+    userGrowth,
   ] = await Promise.all([
-    prisma.user.count({
-      where: { isDeleted: false, role: { in: ["CUSTOMER", "PROVIDER"] } },
-    }),
-    prisma.user.count({
-      where: { isDeleted: false, role: "CUSTOMER" },
-    }),
-    prisma.user.count({
-      where: { isDeleted: false, role: "PROVIDER" },
-    }),
-    prisma.providerProfile.count({
-      where: { approvalStatus: "PENDING" },
-    }),
-    prisma.providerProfile.count({
-      where: { approvalStatus: "APPROVED" },
-    }),
-    prisma.providerProfile.count({
-      where: { approvalStatus: "REJECTED" },
-    }),
-    prisma.user.count({
-      where: { isDeleted: false, status: "SUSPENDED" },
-    }),
+    prisma.user.count({ where: { isDeleted: false, role: { in: ["CUSTOMER", "PROVIDER"] } } }),
+    prisma.user.count({ where: { isDeleted: false, role: "CUSTOMER" } }),
+    prisma.user.count({ where: { isDeleted: false, role: "PROVIDER" } }),
+    prisma.providerProfile.count({ where: { approvalStatus: "PENDING" } }),
+    prisma.providerProfile.count({ where: { approvalStatus: "APPROVED" } }),
+    prisma.providerProfile.count({ where: { approvalStatus: "REJECTED" } }),
+    prisma.user.count({ where: { isDeleted: false, status: "SUSPENDED" } }),
+    prisma.order.count(),
+    prisma.order.count({ where: { status: "PLACED" } }),
+    prisma.order.count({ where: { status: { in: ["PLACED", "ACCEPTED", "PREPARING", "OUT_FOR_DELIVERY"] } } }),
+    prisma.order.count({ where: { status: "DELIVERED" } }),
+    prisma.order.count({ where: { status: "CANCELLED" } }),
+    prisma.payment.aggregate({ where: { status: "SUCCESS" }, _sum: { amount: true } }),
+    prisma.payment.aggregate({ where: { status: "SUCCESS" }, _sum: { platformFeeAmount: true } }),
+    prisma.payment.aggregate({ where: { status: "SUCCESS" }, _sum: { providerShareAmount: true } }),
+    prisma.payment.aggregate({ where: { status: "SUCCESS", providerSettlementStatus: "PAID" }, _sum: { providerShareAmount: true } }),
+    prisma.payment.aggregate({ where: { status: "SUCCESS", providerSettlementStatus: "PENDING" }, _sum: { providerShareAmount: true } }),
+    prisma.$queryRaw<Array<{ month: string; gross: number; fee: number; net: number; orders: number }>>`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', p."paidAt"), 'Mon YY') AS month,
+        COALESCE(SUM(p.amount), 0)::float AS gross,
+        COALESCE(SUM(p."platformFeeAmount"), 0)::float AS fee,
+        COALESCE(SUM(p."providerShareAmount"), 0)::float AS net,
+        COUNT(DISTINCT p."orderId")::int AS orders
+      FROM payments p
+      WHERE p.status = 'SUCCESS'
+        AND p."paidAt" >= NOW() - INTERVAL '6 months'
+      GROUP BY DATE_TRUNC('month', p."paidAt")
+      ORDER BY DATE_TRUNC('month', p."paidAt") ASC
+    `,
+    prisma.$queryRaw<Array<{ month: string; customers: number; providers: number }>>`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', u."createdAt"), 'Mon YY') AS month,
+        COUNT(CASE WHEN u.role = 'CUSTOMER' THEN 1 END)::int AS customers,
+        COUNT(CASE WHEN u.role = 'PROVIDER' THEN 1 END)::int AS providers
+      FROM "user" as u
+      WHERE u."isDeleted" = false
+        AND u."createdAt" >= NOW() - INTERVAL '6 months'
+      GROUP BY DATE_TRUNC('month', u."createdAt")
+      ORDER BY DATE_TRUNC('month', u."createdAt") ASC
+    `,
   ]);
 
   return {
@@ -612,126 +480,26 @@ const getDashboardStats = async () => {
       approved: approvedProviders,
       rejected: rejectedProviders,
     },
-  };
-};
-
-
-//* ------ Payment list ========================================
-const getAllPayments = async (query: TPaymentListQuery) => {
-  const { page, limit, search, status, providerSettlementStatus } = query;
-  const skip = (page - 1) * limit;
-
-  const where: Prisma.PaymentWhereInput = {
-    ...(status && { status }),
-    ...(providerSettlementStatus && { providerSettlementStatus }),
-    ...(search && {
-      OR: [
-        { transactionId: { contains: search, mode: "insensitive" } },
-        { gatewayName: { contains: search, mode: "insensitive" } },
-        {
-          provider: {
-            businessName: { contains: search, mode: "insensitive" },
-          },
-        },
-        {
-          customer: {
-            name: { contains: search, mode: "insensitive" },
-          },
-        },
-        {
-          customer: {
-            email: { contains: search, mode: "insensitive" },
-          },
-        },
-      ],
-    }),
-  };
-
-  const [payments, total] = await Promise.all([
-    prisma.payment.findMany({
-      where,
-      include: {
-        provider: {
-          select: {
-            id: true,
-            businessName: true,
-            businessEmail: true,
-            city: true,
-          },
-        },
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        order: {
-          select: {
-            id: true,
-            orderNumber: true,
-            status: true,
-            totalAmount: true,
-            createdAt: true,
-          },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-      skip,
-      take: limit,
-    }),
-    prisma.payment.count({ where }),
-  ]);
-
-  return {
-    payments,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+    orders: {
+      total: totalOrders,
+      placed: placedOrders,
+      active: activeOrders,
+      delivered: deliveredOrders,
+      cancelled: cancelledOrders,
     },
+    revenue: {
+      gross: Number(grossRevenue._sum.amount ?? 0),
+      platformFee: Number(totalFeeAgg._sum.platformFeeAmount ?? 0),
+      providerShare: Number(totalProviderShareAgg._sum.providerShareAmount ?? 0),
+      paidToProviders: Number(paidToProvidersAgg._sum.providerShareAmount ?? 0),
+      unpaidToProviders: Number(unpaidToProvidersAgg._sum.providerShareAmount ?? 0),
+    },
+    monthlyRevenue,
+    userGrowth,
   };
 };
 
-const getPaymentDetail = async (paymentId: string) => {
-  const payment = await prisma.payment.findUnique({
-    where: { id: paymentId },
-    include: {
-      provider: {
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              phone: true,
-            },
-          },
-        },
-      },
-      customer: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-        },
-      },
-      order: {
-        include: {
-          orderItems: true,
-        },
-      },
-    },
-  });
-
-  if (!payment) {
-    throw new NotFoundError("Payment not found.");
-  }
-
-  return payment;
-};
+/* ─── Orders ─────────────────────────────────────────────────────────────── */
 
 const getAllOrders = async (query: TOrderListQuery) => {
   const { page, limit, search, status } = query;
@@ -742,21 +510,9 @@ const getAllOrders = async (query: TOrderListQuery) => {
     ...(search && {
       OR: [
         { orderNumber: { contains: search, mode: "insensitive" } },
-        {
-          provider: {
-            businessName: { contains: search, mode: "insensitive" },
-          },
-        },
-        {
-          customer: {
-            name: { contains: search, mode: "insensitive" },
-          },
-        },
-        {
-          customer: {
-            email: { contains: search, mode: "insensitive" },
-          },
-        },
+        { provider:  { businessName: { contains: search, mode: "insensitive" } } },
+        { customer:  { name:         { contains: search, mode: "insensitive" } } },
+        { customer:  { email:        { contains: search, mode: "insensitive" } } },
       ],
     }),
   };
@@ -765,26 +521,12 @@ const getAllOrders = async (query: TOrderListQuery) => {
     prisma.order.findMany({
       where,
       include: {
-        provider: {
-          select: {
-            id: true,
-            businessName: true,
-            city: true,
-          },
-        },
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        provider: { select: { id: true, businessName: true, city: true, businessEmail: true } },
+        customer: { select: { id: true, name: true, email: true } },
         payments: {
           select: {
-            id: true,
-            status: true,
-            amount: true,
-            providerSettlementStatus: true,
+            id: true, status: true, amount: true,
+            providerSettlementStatus: true, gatewayName: true,
           },
         },
       },
@@ -797,12 +539,7 @@ const getAllOrders = async (query: TOrderListQuery) => {
 
   return {
     orders,
-    pagination: {
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    },
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
   };
 };
 
@@ -810,76 +547,101 @@ const getOrderDetail = async (orderId: string) => {
   const order = await prisma.order.findUnique({
     where: { id: orderId },
     include: {
-      provider: {
-        select: {
-          id: true,
-          businessName: true,
-          businessEmail: true,
-          city: true,
-        },
-      },
-      customer: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-        },
-      },
+      provider: { select: { id: true, businessName: true, businessEmail: true, city: true } },
+      customer: { select: { id: true, name: true, email: true, phone: true } },
       orderItems: true,
       payments: true,
+      orderStatusHistories: { orderBy: { createdAt: "asc" } },
     },
   });
 
-  if (!order) {
-    throw new NotFoundError("Order not found.");
-  }
-
+  if (!order) throw new NotFoundError("Order not found.");
   return order;
+};
+
+/* ─── Payments / Settlements ─────────────────────────────────────────────── */
+
+const getAllPayments = async (query: TPaymentListQuery) => {
+  const { page, limit, search, status, providerSettlementStatus } = query;
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.PaymentWhereInput = {
+    ...(status && { status }),
+    ...(providerSettlementStatus && { providerSettlementStatus }),
+    ...(search && {
+      OR: [
+        { transactionId: { contains: search, mode: "insensitive" } },
+        { gatewayName:   { contains: search, mode: "insensitive" } },
+        { provider: { businessName: { contains: search, mode: "insensitive" } } },
+        { customer: { name:         { contains: search, mode: "insensitive" } } },
+        { customer: { email:        { contains: search, mode: "insensitive" } } },
+      ],
+    }),
+  };
+
+  const [payments, total] = await Promise.all([
+    prisma.payment.findMany({
+      where,
+      include: {
+        provider: {
+          select: { id: true, businessName: true, businessEmail: true, city: true },
+        },
+        customer: { select: { id: true, name: true, email: true } },
+        order: {
+          select: {
+            id: true, orderNumber: true, status: true,
+            totalAmount: true, createdAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.payment.count({ where }),
+  ]);
+
+  return {
+    payments,
+    pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+  };
+};
+
+const getPaymentDetail = async (paymentId: string) => {
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: {
+      provider: {
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true } },
+        },
+      },
+      customer: { select: { id: true, name: true, email: true, phone: true } },
+      order: { include: { orderItems: true } },
+    },
+  });
+
+  if (!payment) throw new NotFoundError("Payment not found.");
+  return payment;
 };
 
 const getProviderPayablesSummary = async () => {
   const providers = await prisma.providerProfile.findMany({
-    where: {
-      currentPayableAmount: {
-        gt: 0,
-      },
-    },
+    where: { currentPayableAmount: { gt: 0 } },
     select: {
-      id: true,
-      businessName: true,
-      businessEmail: true,
-      city: true,
-      totalGrossRevenue: true,
-      totalPlatformFee: true,
-      totalProviderEarning: true,
-      currentPayableAmount: true,
-      lastPaymentAt: true,
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-        },
-      },
+      id: true, businessName: true, businessEmail: true, city: true,
+      totalGrossRevenue: true, totalPlatformFee: true,
+      totalProviderEarning: true, currentPayableAmount: true, lastPaymentAt: true,
+      user: { select: { id: true, name: true, email: true, phone: true } },
     },
-    orderBy: {
-      currentPayableAmount: "desc",
-    },
+    orderBy: { currentPayableAmount: "desc" },
   });
 
   const pendingSettlementCount = await prisma.payment.count({
-    where: {
-      status: "SUCCESS",
-      providerSettlementStatus: "PENDING",
-    },
+    where: { status: "SUCCESS", providerSettlementStatus: "PENDING" },
   });
 
-  return {
-    providers,
-    pendingSettlementCount,
-  };
+  return { providers, pendingSettlementCount };
 };
 
 const markPaymentAsProviderPaid = async (
@@ -889,49 +651,31 @@ const markPaymentAsProviderPaid = async (
 ) => {
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
-    include: {
-      provider: true,
-    },
+    include: { provider: true },
   });
 
-  if (!payment) {
-    throw new NotFoundError("Payment not found.");
-  }
+  if (!payment) throw new NotFoundError("Payment not found.");
+  if (payment.status !== "SUCCESS") throw new BadRequestError("Only successful payments can be settled.");
+  if (payment.providerSettlementStatus === "PAID") throw new ConflictError("Payment already settled.");
 
-  if (payment.status !== "SUCCESS") {
-    throw new BadRequestError(
-      "Only successful payments can be marked as provider paid."
-    );
-  }
-
-  if (payment.providerSettlementStatus === "PAID") {
-    throw new ConflictError("This payment is already marked as provider paid.");
-  }
-
-  const updated = await prisma.$transaction(async (tx) => {
-    const updatedPayment = await tx.payment.update({
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.payment.update({
       where: { id: paymentId },
       data: {
         providerSettlementStatus: "PAID",
-        providerSettledAt: new Date(),
-        providerSettledBy: adminId,
-        providerSettlementNote: note ?? null,
+        providerSettledAt:        new Date(),
+        providerSettledBy:        adminId,
+        providerSettlementNote:   note ?? null,
       },
     });
 
     await tx.providerProfile.update({
       where: { id: payment.providerId },
-      data: {
-        currentPayableAmount: {
-          decrement: payment.providerShareAmount,
-        },
-      },
+      data: { currentPayableAmount: { decrement: payment.providerShareAmount } },
     });
 
-    return updatedPayment;
+    return updated;
   });
-
-  return updated;
 };
 
 const bulkSettleProvider = async (
@@ -941,192 +685,148 @@ const bulkSettleProvider = async (
 ) => {
   const provider = await prisma.providerProfile.findUnique({
     where: { id: providerId },
-    select: {
-      id: true,
-      businessName: true,
-      currentPayableAmount: true,
-    },
+    select: { id: true, businessName: true, currentPayableAmount: true },
   });
 
-  if (!provider) {
-    throw new NotFoundError("Provider not found.");
-  }
+  if (!provider) throw new NotFoundError("Provider not found.");
+  if (Number(provider.currentPayableAmount) <= 0) throw new BadRequestError("Provider has no pending settlements.");
 
-  if (Number(provider.currentPayableAmount) <= 0) {
-    throw new BadRequestError("Provider has no pending settlements.");
-  }
-
-  const pendingPayments = await prisma.payment.findMany({
-    where: {
-      providerId,
-      status: "SUCCESS",
-      providerSettlementStatus: "PENDING",
-    },
-    select: {
-      id: true,
-      providerShareAmount: true,
-    },
+  const pending = await prisma.payment.findMany({
+    where: { providerId, status: "SUCCESS", providerSettlementStatus: "PENDING" },
+    select: { id: true, providerShareAmount: true },
   });
 
-  if (pendingPayments.length === 0) {
-    throw new BadRequestError("No pending payments found for this provider.");
-  }
+  if (pending.length === 0) throw new BadRequestError("No pending payments for this provider.");
 
-  const totalSettledAmount = pendingPayments.reduce(
-    (sum, payment) => sum + Number(payment.providerShareAmount),
-    0
-  );
+  const total = pending.reduce((s, p) => s + Number(p.providerShareAmount), 0);
 
-  const updatedPayments = await prisma.$transaction(async (tx) => {
-    // Update all pending payments
+  return prisma.$transaction(async (tx) => {
     await tx.payment.updateMany({
-      where: {
-        providerId,
-        status: "SUCCESS",
-        providerSettlementStatus: "PENDING",
-      },
+      where: { providerId, status: "SUCCESS", providerSettlementStatus: "PENDING" },
       data: {
         providerSettlementStatus: "PAID",
-        providerSettledAt: new Date(),
-        providerSettledBy: adminId,
-        providerSettlementNote: note ?? null,
+        providerSettledAt:        new Date(),
+        providerSettledBy:        adminId,
+        providerSettlementNote:   note ?? null,
       },
     });
 
-    // Update provider's payable amount
     await tx.providerProfile.update({
       where: { id: providerId },
       data: {
-        currentPayableAmount: {
-          decrement: totalSettledAmount,
-        },
+        currentPayableAmount: { decrement: total },
         lastPaymentAt: new Date(),
       },
     });
 
-    // Return the updated payments
-    return tx.payment.findMany({
-      where: {
-        providerId,
-        status: "SUCCESS",
-        providerSettlementStatus: "PAID",
-        providerSettledBy: adminId,
-      },
-      include: {
-        order: {
-          select: {
-            id: true,
-            orderNumber: true,
-          },
-        },
-      },
-      orderBy: {
-        providerSettledAt: "desc",
-      },
+    const settled = await tx.payment.findMany({
+      where: { providerId, providerSettledBy: adminId },
+      include: { order: { select: { id: true, orderNumber: true } } },
+      orderBy: { providerSettledAt: "desc" },
+      take: pending.length,
     });
+
+    return {
+      provider: { id: provider.id, businessName: provider.businessName },
+      settledPayments: settled,
+      totalSettledAmount: total,
+      paymentCount: settled.length,
+    };
+  });
+};
+
+/* ─── Categories ─────────────────────────────────────────────────────────── */
+
+const getAllCategories = async () =>
+  prisma.category.findMany({
+    orderBy: { displayOrder: "asc" },
+    include: { _count: { select: { meals: true } } },
   });
 
-  return {
-    provider: {
-      id: provider.id,
-      businessName: provider.businessName,
-    },
-    settledPayments: updatedPayments,
-    totalSettledAmount,
-    paymentCount: updatedPayments.length,
-  };
+const createCategory = async (payload: {
+  name: string; slug: string; imageURL: string; displayOrder?: number;
+}) => {
+  const existing = await prisma.category.findFirst({
+    where: { OR: [{ name: payload.name }, { slug: payload.slug }] },
+    select: { id: true },
+  });
+
+  if (existing) throw new ConflictError("A category with this name or slug already exists.");
+
+  return prisma.category.create({
+    data: { ...payload, displayOrder: payload.displayOrder ?? 0 },
+  });
 };
-const updateProviderStatus = async (
-  profileId: string,
-  adminId: string,
-  payload: TUpdateProviderStatus
+
+const updateCategory = async (
+  categoryId: string,
+  payload: { name?: string; slug?: string; imageURL?: string; displayOrder?: number; isActive?: boolean }
 ) => {
-  const profile = await prisma.providerProfile.findUnique({
-    where: { id: profileId },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          status: true,
-          isDeleted: true,
-        },
-      },
-    },
-  });
-
-  if (!profile) {
-    throw new NotFoundError("Provider profile not found.");
-  }
-
-  if (profile.user.isDeleted) {
-    throw new ForbiddenError("This provider account has been deleted.");
-  }
-
-  const { approvalStatus, userStatus, rejectionReason } = payload;
-
-  const updated = await prisma.$transaction(async (tx) => {
-    if (userStatus) {
-      await tx.user.update({
-        where: { id: profile.user.id },
-        data: {
-          status: userStatus,
-        },
-      });
-    }
-
-    if (approvalStatus) {
-      await tx.providerProfile.update({
-        where: { id: profileId },
-        data: {
-          approvalStatus,
-          rejectionReason:
-            approvalStatus === "REJECTED" ? rejectionReason ?? null : null,
-          reviewedBy: adminId,
-          reviewedAt: new Date(),
-        },
-      });
-    }
-
-    return tx.providerProfile.findUnique({
-      where: { id: profileId },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            status: true,
-          },
-        },
-      },
-    });
-  });
-
-  return updated;
+  const cat = await prisma.category.findUnique({ where: { id: categoryId }, select: { id: true } });
+  if (!cat) throw new NotFoundError("Category not found.");
+  return prisma.category.update({ where: { id: categoryId }, data: payload });
 };
+
+const deleteCategory = async (categoryId: string) => {
+  const cat = await prisma.category.findUnique({
+    where: { id: categoryId },
+    include: { _count: { select: { meals: true } } },
+  });
+
+  if (!cat) throw new NotFoundError("Category not found.");
+  if (cat._count.meals > 0) {
+    throw new BadRequestError(`Cannot delete category with ${cat._count.meals} meal(s). Reassign first.`);
+  }
+
+  return prisma.category.delete({ where: { id: categoryId } });
+};
+
+const toggleCategoryStatus = async (categoryId: string) => {
+  const cat = await prisma.category.findUnique({
+    where: { id: categoryId },
+    select: { id: true, isActive: true },
+  });
+  if (!cat) throw new NotFoundError("Category not found.");
+  return prisma.category.update({
+    where: { id: categoryId },
+    data: { isActive: !cat.isActive },
+  });
+};
+
+/* ─── Export ─────────────────────────────────────────────────────────────── */
 
 export const AdminService = {
+  // providers
   getPendingProviders,
   getAllProviders,
   getProviderDetail,
   approveProvider,
   rejectProvider,
+  updateProviderStatus,
+  // users
   getAllUsers,
   getUserDetail,
   suspendUser,
   reactivateUser,
+  toggleUserStatus,
+  // super admin
   getAllAdmins,
   createAdmin,
+  // dashboard
   getDashboardStats,
-  getAllPayments,
-  getPaymentDetail,
+  // orders
   getAllOrders,
   getOrderDetail,
+  // payments/settlements
+  getAllPayments,
+  getPaymentDetail,
   getProviderPayablesSummary,
   markPaymentAsProviderPaid,
   bulkSettleProvider,
-  updateProviderStatus
-}
+  // categories
+  getAllCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  toggleCategoryStatus,
+};

@@ -6,8 +6,12 @@ export const getProviderProfile = async (userId: string) => {
     where: { userId },
     select: {
       id: true,
+      businessName: true,
       approvalStatus: true,
       isActive: true,
+      totalPlatformFee: true,
+      currentPayableAmount:true,
+      lastPaymentAt:true
     },
   });
 

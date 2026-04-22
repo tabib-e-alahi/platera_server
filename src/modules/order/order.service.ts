@@ -7,9 +7,15 @@ import {
 import {
   TCheckoutPreviewPayload,
   TCreateOrderPayload,
+  TUpdateOrderStatusPayload,
 } from "./order.validation";
 import { computeDiscount } from "../../utils/discount.util";
 import { Prisma } from "../../../generated/prisma/client";
+import { ORDER_STATUS_TRANSITIONS, CUSTOMER_CANCELLABLE_STATUSES } from "./order.constants";
+import { orderEventBus } from "./order.event";
+import { getProviderProfile } from "../../helpers/getProviderProfile";
+
+/* ─── Internal helpers ──────────────────────────────────────────────────── */
 
 const normalizeCity = (city: string) => city.trim().toUpperCase();
 
@@ -32,12 +38,10 @@ const getCartOrThrow = async (customerProfileId: string) => {
     where: { customerId: customerProfileId },
     include: {
       provider: true,
-      cartItems:{
-          include: {
-              meal: true,
-          },
-          orderBy: { createdAt: "asc" },
-      }
+      cartItems: {
+        include: { meal: true },
+        orderBy: { createdAt: "asc" },
+      },
     },
   });
 
@@ -105,8 +109,7 @@ const buildValidatedCheckoutState = async (
 
   const subtotal = validatedItems.reduce((sum, item) => sum + item.totalPrice, 0);
   const discountAmount = validatedItems.reduce(
-    (sum, item) =>
-      sum + (item.baseUnitPrice - item.unitPrice) * item.quantity,
+    (sum, item) => sum + (item.baseUnitPrice - item.unitPrice) * item.quantity,
     0
   );
   const deliveryFee =
@@ -119,12 +122,7 @@ const buildValidatedCheckoutState = async (
     customerProfile,
     cart,
     validatedItems,
-    totals: {
-      subtotal,
-      discountAmount,
-      deliveryFee,
-      totalAmount,
-    },
+    totals: { subtotal, discountAmount, deliveryFee, totalAmount },
     delivery: {
       customerName: payload.customerName,
       customerPhone: payload.customerPhone,
@@ -137,6 +135,8 @@ const buildValidatedCheckoutState = async (
     },
   };
 };
+
+/* ─── Service functions ─────────────────────────────────────────────────── */
 
 const getCheckoutPreview = async (
   userId: string,
@@ -162,7 +162,7 @@ const generateOrderNumber = () => {
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, "0");
   const d = String(now.getDate()).padStart(2, "0");
-  const rand = Math.random().toString().slice(2, 8);
+  const rand = Math.random().toString(36).slice(2, 7).toUpperCase();
   return `PLT-${y}${m}${d}-${rand}`;
 };
 
@@ -185,13 +185,16 @@ const createOrder = async (userId: string, payload: TCreateOrderPayload) => {
   }
 
   const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const initialStatus =
+      payload.paymentMethod === "ONLINE" ? "PENDING_PAYMENT" : "PLACED";
+
     const order = await tx.order.create({
       data: {
         orderNumber: generateOrderNumber(),
         customerId: userId,
         providerId: state.cart.provider.id,
         paymentMethod: payload.paymentMethod,
-        status: payload.paymentMethod === "ONLINE" ? "PENDING_PAYMENT" : "PLACED",
+        status: initialStatus,
         customerName: state.delivery.customerName,
         customerPhone: state.delivery.customerPhone,
         deliveryCity: state.delivery.deliveryCity,
@@ -222,75 +225,108 @@ const createOrder = async (userId: string, payload: TCreateOrderPayload) => {
       });
     }
 
-    if (payload.paymentMethod === "COD") {
-      await tx.providerProfile.update({
-        where: { id: state.cart.provider.id },
-        data: {
-          totalOrdersCompleted: {
-            increment: 0,
-          },
-        },
-      });
-
-      await tx.cart.delete({
-        where: { id: state.cart.id },
-      });
-    }
-
-    const createdOrder = await tx.order.findUnique({
-      where: { id: order.id },
-      include: {
-        provider: {
-          select: {
-            id: true,
-            businessName: true,
-            city: true,
-          },
-        },
-        orderItems: true,
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: order.id,
+        status: initialStatus,
+        note:
+          payload.paymentMethod === "ONLINE"
+            ? "Order created. Waiting for payment."
+            : "Order placed successfully via Cash on Delivery.",
+        changedByUserId: userId,
+        changedByRole: "CUSTOMER",
       },
     });
 
-    return createdOrder;
+    if (payload.paymentMethod === "COD") {
+      await tx.cart.delete({ where: { id: state.cart.id } });
+    }
+
+    return tx.order.findUnique({
+      where: { id: order.id },
+      include: {
+        provider: {
+          select: { id: true, businessName: true, city: true, imageURL: true },
+        },
+        orderItems: true,
+        orderStatusHistories: { orderBy: { createdAt: "asc" } },
+      },
+    });
   });
 
   return result;
 };
 
-const getMyOrders = async (userId: string) => {
-  const orders = await prisma.order.findMany({
-    where: { customerId: userId },
-    include: {
-      provider: {
-        select: {
-          id: true,
-          businessName: true,
-          city: true,
-          imageURL: true,
-        },
-      },
-      orderItems: true,
-      payments: {
-        select: {
-          id: true,
-          status: true,
-          amount: true,
-          gatewayName: true,
-        },
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+const getMyOrders = async (
+  userId: string,
+  query?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+    search?: string;
+  }
+) => {
+  const page = Math.max(1, query?.page ?? 1);
+  const limit = Math.min(50, Math.max(1, query?.limit ?? 20));
+  const skip = (page - 1) * limit;
 
-  return orders;
+  const where: Prisma.OrderWhereInput = {
+    customerId: userId,
+    ...(query?.status && { status: query.status as any }),
+    ...(query?.search && {
+      OR: [
+        { orderNumber: { contains: query.search, mode: "insensitive" } },
+        {
+          orderItems: {
+            some: {
+              mealName: { contains: query.search, mode: "insensitive" },
+            },
+          },
+        },
+        {
+          provider: {
+            businessName: { contains: query.search, mode: "insensitive" },
+          },
+        },
+      ],
+    }),
+  };
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        provider: {
+          select: { id: true, businessName: true, city: true, imageURL: true },
+        },
+        orderItems: true,
+        payments: {
+          select: { id: true, status: true, amount: true, gatewayName: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return {
+    orders: orders.map((order) => ({ ...order, items: order.orderItems })),
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: skip + limit < total,
+      hasPrevPage: page > 1,
+    },
+  };
 };
 
 const getMyOrderDetail = async (userId: string, orderId: string) => {
   const order = await prisma.order.findFirst({
-    where: {
-      id: orderId,
-      customerId: userId,
-    },
+    where: { id: orderId, customerId: userId },
     include: {
       provider: {
         select: {
@@ -301,23 +337,226 @@ const getMyOrderDetail = async (userId: string, orderId: string) => {
           phone: true,
         },
       },
-      orderItems:true,
+      orderItems: true,
       payments: true,
+      orderStatusHistories: { orderBy: { createdAt: "asc" } },
     },
   });
 
-  if (!order) {
-    throw new NotFoundError("Order not found.");
-  }
+  if (!order) throw new NotFoundError("Order not found.");
 
-  return order;
+  return { ...order, items: order.orderItems };
 };
 
+/**
+ * Cancel an order — customer may cancel if status is:
+ *   PENDING_PAYMENT | PLACED | ACCEPTED
+ * Once PREPARING or beyond, cancellation is not allowed.
+ */
+const cancelMyOrder = async (userId: string, orderId: string) => {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, customerId: userId },
+  });
 
+  if (!order) throw new NotFoundError("Order not found.");
+
+  if (!CUSTOMER_CANCELLABLE_STATUSES.includes(order.status)) {
+    throw new BadRequestError(
+      order.status === "PREPARING" || order.status === "OUT_FOR_DELIVERY"
+        ? "Your order is already being prepared and can no longer be cancelled."
+        : order.status === "DELIVERED"
+        ? "This order has already been delivered."
+        : order.status === "CANCELLED"
+        ? "This order is already cancelled."
+        : "This order can no longer be cancelled."
+    );
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: "CANCELLED",
+        cancelledAt: new Date(),
+      },
+    });
+
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId,
+        status: "CANCELLED",
+        note: "Cancelled by customer.",
+        changedByUserId: userId,
+        changedByRole: "CUSTOMER",
+      },
+    });
+
+    return next;
+  });
+
+  orderEventBus.emitOrderUpdate({
+    orderId,
+    status: updated.status,
+    message: "Your order has been cancelled.",
+    updatedAt: updated.updatedAt.toISOString(),
+  });
+
+  return updated;
+};
+
+const getProviderOrders = async (
+  userId: string,
+  query?: { status?: string; page?: number; limit?: number }
+) => {
+  const provider = await getProviderProfile(userId);
+console.log(provider);
+  const page = Math.max(1, query?.page ?? 1);
+  const limit = Math.min(50, Math.max(1, query?.limit ?? 20));
+  const skip = (page - 1) * limit;
+
+  const where: Prisma.OrderWhereInput = {
+    providerId: provider.id,
+    status: {
+      in: query?.status
+        ? ([query.status] as any)
+        : ["PLACED", "ACCEPTED", "PREPARING", "OUT_FOR_DELIVERY", "DELIVERED", "CANCELLED"],
+    },
+  };
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        customer: { select: { id: true, name: true, email: true } },
+        orderItems: true,
+        payments: {
+          select: { id: true, status: true, amount: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return {
+    orders: orders.map((order) => ({ ...order, items: order.orderItems })),
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: skip + limit < total,
+      hasPrevPage: page > 1,
+    },
+  };
+};
+
+const updateProviderOrderStatus = async (
+  userId: string,
+  orderId: string,
+  payload: TUpdateOrderStatusPayload
+) => {
+  const provider = await getProviderProfile(userId);
+
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, providerId: provider.id },
+  });
+
+  if (!order) throw new NotFoundError("Order not found.");
+
+  const allowedNext = ORDER_STATUS_TRANSITIONS[order.status];
+  if (!allowedNext.includes(payload.status)) {
+    throw new BadRequestError(
+      `Invalid transition: ${order.status} → ${payload.status}.`
+    );
+  }
+
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.order.update({
+      where: { id: orderId },
+      data: {
+        status: payload.status,
+        acceptedAt: payload.status === "ACCEPTED" ? new Date() : order.acceptedAt,
+        deliveredAt: payload.status === "DELIVERED" ? new Date() : order.deliveredAt,
+        cancelledAt: payload.status === "CANCELLED" ? new Date() : order.cancelledAt,
+      },
+    });
+
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId,
+        status: payload.status,
+        note: payload.note || `Order moved to ${payload.status}`,
+        changedByUserId: userId,
+        changedByRole: "PROVIDER",
+      },
+    });
+
+    return next;
+  });
+
+  const statusMessages: Record<string, string> = {
+    ACCEPTED: "Restaurant has accepted your order!",
+    PREPARING: "Your food is being prepared.",
+    OUT_FOR_DELIVERY: "Your order is out for delivery!",
+    DELIVERED: "Your order has been delivered. Enjoy!",
+    CANCELLED: "Your order was cancelled by the restaurant.",
+  };
+
+  orderEventBus.emitOrderUpdate({
+    orderId,
+    status: updated.status,
+    message:
+      payload.note ||
+      statusMessages[payload.status] ||
+      `Order moved to ${updated.status}`,
+    updatedAt: updated.updatedAt.toISOString(),
+  });
+
+  return updated;
+};
+
+const getOrderTracking = async (userId: string, orderId: string) => {
+  const order = await prisma.order.findFirst({
+    where: { id: orderId, customerId: userId },
+    include: {
+      provider: {
+        select: {
+          id: true,
+          businessName: true,
+          city: true,
+          imageURL: true,
+          phone: true,
+        },
+      },
+      orderItems: true,
+      payments: {
+        select: {
+          id: true,
+          status: true,
+          amount: true,
+          gatewayName: true,
+          createdAt: true,
+        },
+      },
+      orderStatusHistories: { orderBy: { createdAt: "asc" } },
+    },
+  });
+
+  if (!order) throw new NotFoundError("Order not found.");
+
+  return { ...order, items: order.orderItems };
+};
 
 export const OrderService = {
   getCheckoutPreview,
   createOrder,
   getMyOrders,
   getMyOrderDetail,
+  cancelMyOrder,
+  getProviderOrders,
+  updateProviderOrderStatus,
+  getOrderTracking,
 };

@@ -35,8 +35,9 @@ model Order {
   customer User            @relation(fields: [customerId], references: [id])
   provider ProviderProfile @relation(fields: [providerId], references: [id])
 
-  payments   Payment[]
-  orderItems OrderItem[]
+  payments             Payment[]
+  orderItems           OrderItem[]
+  orderStatusHistories OrderStatusHistory[]
 
   @@index([customerId])
   @@index([providerId])

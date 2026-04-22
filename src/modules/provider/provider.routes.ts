@@ -23,6 +23,12 @@ router.get(
   ProviderController.getMyProfile
 );
 
+router.get(
+  "/dashboard/stats",
+  authMiddleware(UserRole.PROVIDER),
+  ProviderController.getDashboardStats
+);
+
 //* create provider profile
 router.post(
   "/profile",

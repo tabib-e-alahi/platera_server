@@ -561,10 +561,112 @@ const requestApproval = async (userId: string) => {
   return updatedProfile;
 };
 
+// ─── Provider Dashboard Stats ─────────────────────────────────────────────────
+
+const getProviderDashboardStats = async (userId: string) => {
+  const profile = await prisma.providerProfile.findUnique({
+    where: { userId },
+    select: {
+      id: true,
+      totalGrossRevenue: true,
+      totalPlatformFee: true,
+      totalProviderEarning: true,
+      currentPayableAmount: true,
+      totalOrdersCompleted: true,
+      lastPaymentAt: true,
+    },
+  });
+
+  if (!profile) throw new NotFoundError("Provider profile not found.");
+
+  const [
+    placedOrders,
+    cancelledOrders,
+    deliveredOrders,
+    activeOrders,
+    totalOrders,
+    paidSettlements,
+    pendingSettlements,
+    monthlyRevenue,
+  ] = await Promise.all([
+    prisma.order.count({ where: { providerId: profile.id, status: "PLACED" } }),
+    prisma.order.count({ where: { providerId: profile.id, status: "CANCELLED" } }),
+    prisma.order.count({ where: { providerId: profile.id, status: "DELIVERED" } }),
+    prisma.order.count({
+      where: {
+        providerId: profile.id,
+        status: { in: ["PLACED", "ACCEPTED", "PREPARING", "OUT_FOR_DELIVERY"] },
+      },
+    }),
+    prisma.order.count({ where: { providerId: profile.id } }),
+    prisma.payment.aggregate({
+      where: {
+        providerId: profile.id,
+        status: "SUCCESS",
+        providerSettlementStatus: "PAID",
+      },
+      _sum: { providerShareAmount: true },
+      _count: true,
+    }),
+    prisma.payment.aggregate({
+      where: {
+        providerId: profile.id,
+        status: "SUCCESS",
+        providerSettlementStatus: "PENDING",
+      },
+      _sum: { providerShareAmount: true },
+      _count: true,
+    }),
+    prisma.$queryRaw<Array<{ month: string; gross: number; fee: number; net: number }>>`
+      SELECT
+        TO_CHAR(DATE_TRUNC('month', p."paidAt"), 'Mon YY') AS month,
+        COALESCE(SUM(p.amount), 0)::float AS gross,
+        COALESCE(SUM(p."platformFeeAmount"), 0)::float AS fee,
+        COALESCE(SUM(p."providerShareAmount"), 0)::float AS net
+      FROM payments p
+      WHERE p."providerId" = ${profile.id}
+        AND p.status = 'SUCCESS'
+        AND p."paidAt" >= NOW() - INTERVAL '6 months'
+      GROUP BY DATE_TRUNC('month', p."paidAt")
+      ORDER BY DATE_TRUNC('month', p."paidAt") ASC
+    `,
+  ]);
+
+  return {
+    overview: {
+      totalGrossRevenue: Number(profile.totalGrossRevenue),
+      totalPlatformFee: Number(profile.totalPlatformFee),
+      totalProviderEarning: Number(profile.totalProviderEarning),
+      currentPayableAmount: Number(profile.currentPayableAmount),
+      totalOrdersCompleted: profile.totalOrdersCompleted,
+      lastPaymentAt: profile.lastPaymentAt,
+    },
+    orders: {
+      total: totalOrders,
+      placed: placedOrders,
+      active: activeOrders,
+      delivered: deliveredOrders,
+      cancelled: cancelledOrders,
+    },
+    settlements: {
+      paid: {
+        count: paidSettlements._count,
+        amount: Number(paidSettlements._sum.providerShareAmount ?? 0),
+      },
+      pending: {
+        count: pendingSettlements._count,
+        amount: Number(pendingSettlements._sum.providerShareAmount ?? 0),
+      },
+    },
+    monthlyRevenue,
+  };
+};
+
 export const ProviderService = {
   getMyProfile,
   createProviderProfile,
   updateProviderProfile,
   deleteProviderImage,
   requestApproval,
+  getProviderDashboardStats,
 };

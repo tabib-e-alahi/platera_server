@@ -127,10 +127,29 @@ const requestApproval = async (
   }
 };
 
+const getDashboardStats = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await ProviderService.getProviderDashboardStats(req.user.id);
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Dashboard stats fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const ProviderController = {
   getMyProfile,
   createProfile,
   updateProfile,
   deleteImage,
   requestApproval,
+  getDashboardStats,
 };

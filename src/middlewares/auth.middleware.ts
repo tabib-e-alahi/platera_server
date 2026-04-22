@@ -26,9 +26,7 @@ const authMiddleware = (...roles: UserRole[]) => {
         );
       }
       const { user } = session;
-
       const typedUser = user as unknown as Express.Request["user"];
-
       if (typedUser.isDeleted) {
         throw new ForbiddenError(
           "This account no longer exists. Please contact support."
@@ -40,7 +38,7 @@ const authMiddleware = (...roles: UserRole[]) => {
           "Your account has been suspended. Please contact support."
         );
       }
-
+      
       if (roles.length > 0 && !roles.includes(typedUser.role as UserRole)) {
         throw new ForbiddenError(
           "You do not have permission to access this resource."

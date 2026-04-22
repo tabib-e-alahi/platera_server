@@ -11,405 +11,215 @@ import {
   orderListQuerySchema,
   paymentListQuerySchema,
   TMarkProviderPaid,
+  TUpdateProviderStatus,
 } from "./admin.validation";
 import { sendResponse } from "../../utils/sendResponse";
 import status from "http-status";
 
-// ─── Dashboard ────────────────────────────────────────────────────────────────
+/* ─── Dashboard ──────────────────────────────────────────────────────────── */
 
-const getDashboardStats = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const getDashboardStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const result = await AdminService.getDashboardStats();
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Dashboard stats fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Dashboard stats fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-// ─── Provider management ──────────────────────────────────────────────────────
+/* ─── Provider management ────────────────────────────────────────────────── */
 
-const getPendingProviders = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const getPendingProviders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const query = providerListQuerySchema.parse(req.query);
     const result = await AdminService.getPendingProviders(query);
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Pending providers fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Pending providers fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const getAllProviders = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const getAllProviders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const query = providerListQuerySchema.parse(req.query);
     const result = await AdminService.getAllProviders(query);
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Providers fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Providers fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const getProviderDetail = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const getProviderDetail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const providerId = req.params.id as string;
-    const result = await AdminService.getProviderDetail(providerId);
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Provider detail fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    const result = await AdminService.getProviderDetail(req.params.id as string);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Provider detail fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const approveProvider = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const approveProvider = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const result = await AdminService.approveProvider(
-      req.params.id as string,
-      req.user.id
-    );
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Provider approved successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    const result = await AdminService.approveProvider(req.params.id as string, req.user.id);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Provider approved.", data: result });
+  } catch (e) { next(e); }
 };
 
-const rejectProvider = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const rejectProvider = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { rejectionReason } = req.body as TRejectProvider;
-    const result = await AdminService.rejectProvider(
-      req.params.id as string,
-      req.user.id,
-      rejectionReason
-    );
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Provider rejected successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    const result = await AdminService.rejectProvider(req.params.id as string, req.user.id, rejectionReason);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Provider rejected.", data: result });
+  } catch (e) { next(e); }
 };
 
-// ─── User management ──────────────────────────────────────────────────────────
+const updateProviderStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AdminService.updateProviderStatus(req.params.id as string, req.user.id, req.body as TUpdateProviderStatus);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Provider status updated.", data: result });
+  } catch (e) { next(e); }
+};
 
-const getAllUsers = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+/* ─── User management ────────────────────────────────────────────────────── */
+
+const getAllUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const query = userListQuerySchema.parse(req.query);
     const result = await AdminService.getAllUsers(query);
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Users fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Users fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const getUserDetail = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const getUserDetail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const result = await AdminService.getUserDetail(req.params.id as string);
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "User detail fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "User detail fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const suspendUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const suspendUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { reason } = req.body as TSuspendUser;
-    const result = await AdminService.suspendUser(
-      req.params.id as string,
-      req.user.id,
-      reason
-    );
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "User suspended successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    const result = await AdminService.suspendUser(req.params.id as string, req.user.id, reason);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "User suspended.", data: result });
+  } catch (e) { next(e); }
 };
 
-const reactivateUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const reactivateUser = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const result = await AdminService.reactivateUser(
-      req.params.id as string,
-      req.user.id
-    );
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "User reactivated successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    const result = await AdminService.reactivateUser(req.params.id as string, req.user.id);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "User reactivated.", data: result });
+  } catch (e) { next(e); }
 };
 
-// ─── Super admin only ─────────────────────────────────────────────────────────
+const toggleUserStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AdminService.toggleUserStatus(req.params.id as string, req.user.id);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "User status toggled.", data: result });
+  } catch (e) { next(e); }
+};
 
-const getAllAdmins = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+/* ─── Super admin ────────────────────────────────────────────────────────── */
+
+const getAllAdmins = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const result = await AdminService.getAllAdmins();
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Admins fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Admins fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const createAdmin = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-): Promise<void> => {
+const createAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const payload = req.body as TCreateAdmin;
-    const result = await AdminService.createAdmin(
-      payload,
-      req.user.id
-    );
-    sendResponse(res, {
-      httpStatusCode: status.CREATED,
-      success: true,
-      message: "Admin account created successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    const result = await AdminService.createAdmin(req.body as TCreateAdmin, req.user.id);
+    sendResponse(res, { httpStatusCode: status.CREATED, success: true, message: "Admin account created.", data: result });
+  } catch (e) { next(e); }
 };
 
-//! ================ /////////////////////////// ================== new
-const getAllOrders = async (req: Request, res: Response, next: NextFunction) => {
+/* ─── Orders ─────────────────────────────────────────────────────────────── */
+
+const getAllOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const query = orderListQuerySchema.parse(req.query);
     const result = await AdminService.getAllOrders(query);
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Orders fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Orders fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const getOrderDetail = async (req: Request, res: Response, next: NextFunction) => {
+const getOrderDetail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const result = await AdminService.getOrderDetail(req.params.id as string);
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Order detail fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Order detail fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const getAllPayments = async (req: Request, res: Response, next: NextFunction) => {
+/* ─── Payments ───────────────────────────────────────────────────────────── */
+
+const getAllPayments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const query = paymentListQuerySchema.parse(req.query);
     const result = await AdminService.getAllPayments(query);
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Payments fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Payments fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const getPaymentDetail = async (req: Request, res: Response, next: NextFunction) => {
+const getPaymentDetail = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const result = await AdminService.getPaymentDetail(req.params.id as string);
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Payment detail fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Payment detail fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const getProviderPayablesSummary = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+const getProviderPayablesSummary = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const result = await AdminService.getProviderPayablesSummary();
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Provider payables fetched successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Provider payables fetched.", data: result });
+  } catch (e) { next(e); }
 };
 
-const markPaymentAsProviderPaid = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+const markPaymentAsProviderPaid = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+
     const { note } = req.body as TMarkProviderPaid;
-    const result = await AdminService.markPaymentAsProviderPaid(
-      req.params.id as string,
-      req.user.id,
-      note
-    );
-
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Payment marked as provider paid successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-const bulkSettleProvider = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  try {
-    const { note } = req.body as TMarkProviderPaid;
-    const result = await AdminService.bulkSettleProvider(
-      req.params.providerId as string,
-      req.user.id,
-      note
-    );
-
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Bulk settlement completed successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
-
+    const result = await AdminService.markPaymentAsProviderPaid(req.params.paymentId as string, req.user.id, note);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Payment settled.", data: result });
+  } catch (e) { next(e); }
 };
 
-const updateProviderStatus = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+const bulkSettleProvider = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const providerId = req.params.id as string;
-    const result = await AdminService.updateProviderStatus(
-      providerId,
-      req.user.id,
-      req.body
-    );
+    const { note } = req.body as TMarkProviderPaid;
+    const result = await AdminService.bulkSettleProvider(req.params.providerId as string, req.user.id, note);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Bulk settlement completed.", data: result });
+  } catch (e) { next(e); }
+};
 
-    sendResponse(res, {
-      httpStatusCode: status.OK,
-      success: true,
-      message: "Provider status updated successfully.",
-      data: result,
-    });
-  } catch (error) {
-    next(error);
-  }
+/* ─── Categories ─────────────────────────────────────────────────────────── */
+
+const getAllCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AdminService.getAllCategories();
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Categories fetched.", data: result });
+  } catch (e) { next(e); }
+};
+
+const createCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AdminService.createCategory(req.body);
+    sendResponse(res, { httpStatusCode: status.CREATED, success: true, message: "Category created.", data: result });
+  } catch (e) { next(e); }
+};
+
+const updateCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AdminService.updateCategory(req.params.id as string, req.body);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Category updated.", data: result });
+  } catch (e) { next(e); }
+};
+
+const deleteCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AdminService.deleteCategory(req.params.id as string);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Category deleted.", data: result });
+  } catch (e) { next(e); }
+};
+
+const toggleCategoryStatus = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AdminService.toggleCategoryStatus(req.params.id as string);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Category status toggled.", data: result });
+  } catch (e) { next(e); }
 };
 
 export const AdminController = {
@@ -419,10 +229,12 @@ export const AdminController = {
   getProviderDetail,
   approveProvider,
   rejectProvider,
+  updateProviderStatus,
   getAllUsers,
   getUserDetail,
   suspendUser,
   reactivateUser,
+  toggleUserStatus,
   getAllAdmins,
   createAdmin,
   getAllOrders,
@@ -432,5 +244,9 @@ export const AdminController = {
   getProviderPayablesSummary,
   markPaymentAsProviderPaid,
   bulkSettleProvider,
-  updateProviderStatus,
-}
+  getAllCategories,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  toggleCategoryStatus,
+};

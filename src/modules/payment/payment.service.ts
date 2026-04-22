@@ -4,6 +4,7 @@ import { AppError } from "../../errors/AppError";
 import axios from "axios";
 import { prisma } from "../../lib/prisma";
 import { randomUUID } from "crypto";
+import { orderEventBus } from "../order/order.event";
 
 const backendBaseUrl = envConfig.BACKEND_LOCAL_HOST;
 const frontendBaseUrl = envConfig.NODE_ENV === 'production' ? envConfig.frontend_production_host : envConfig.frontend_local_host;
@@ -73,6 +74,16 @@ const finalizeSuccessPayment = async (payment: any, validation: any) => {
       data: {
         status: "PLACED",
         placedAt: new Date(),
+      },
+    });
+
+    await tx.orderStatusHistory.create({
+      data: {
+        orderId: order.id,
+        status: "PLACED",
+        note: "Online payment successful. Order placed.",
+        changedByUserId: order.customerId,
+        changedByRole: "CUSTOMER",
       },
     });
 
@@ -300,8 +311,8 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
 
     throw new AppError(
       error?.response?.data?.failedreason ||
-        error?.message ||
-        "Failed to initiate payment.",
+      error?.message ||
+      "Failed to initiate payment.",
       status.BAD_REQUEST
     );
   }
@@ -343,6 +354,12 @@ const handleSuccess = async (payload: any) => {
       status.BAD_REQUEST
     );
   }
+  orderEventBus.emitOrderUpdate({
+    orderId: payment.orderId,
+    status: "PLACED",
+    message: "Payment successful. Order placed.",
+    updatedAt: new Date().toISOString(),
+  });
 
   await finalizeSuccessPayment(payment, validation);
 

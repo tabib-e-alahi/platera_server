@@ -21,5 +21,18 @@ export const createOrderSchema = z.object({
   paymentMethod: z.enum(["ONLINE", "COD"]),
 });
 
+export const updateOrderStatusSchema = z.object({
+  status: z.enum([
+    "PLACED",
+    "ACCEPTED",
+    "PREPARING",
+    "OUT_FOR_DELIVERY",
+    "DELIVERED",
+    "CANCELLED",
+  ]),
+  note: z.string().trim().max(300).optional(),
+});
+
 export type TCheckoutPreviewPayload = z.infer<typeof checkoutPreviewSchema>;
 export type TCreateOrderPayload = z.infer<typeof createOrderSchema>;
+export type TUpdateOrderStatusPayload = z.infer<typeof updateOrderStatusSchema>;
