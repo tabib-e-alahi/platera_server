@@ -34,7 +34,7 @@ const getPendingProviders = async (query: TProviderListQuery) => {
       isDeleted: false,
       ...(search && {
         OR: [
-          { name:  { contains: search, mode: "insensitive" as const } },
+          { name: { contains: search, mode: "insensitive" as const } },
           { email: { contains: search, mode: "insensitive" as const } },
         ],
       }),
@@ -72,7 +72,7 @@ const getAllProviders = async (query: TProviderListQuery) => {
       isDeleted: false,
       ...(search && {
         OR: [
-          { name:  { contains: search, mode: "insensitive" as const } },
+          { name: { contains: search, mode: "insensitive" as const } },
           { email: { contains: search, mode: "insensitive" as const } },
         ],
       }),
@@ -100,7 +100,7 @@ const getAllProviders = async (query: TProviderListQuery) => {
   return {
     providers: providers.map(p => ({
       ...p,
-      mealCount:  p._count.meals,
+      mealCount: p._count.meals,
       orderCount: p._count.orders,
     })),
     pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
@@ -117,8 +117,8 @@ const getProviderDetail = async (profileId: string) => {
           status: true, isDeleted: true, createdAt: true, emailVerified: true,
         },
       },
-      meals:    { select: { id: true } },
-      orders:   { select: { id: true } },
+      meals: { select: { id: true } },
+      orders: { select: { id: true } },
       payments: {
         select: {
           id: true, amount: true, status: true, providerSettlementStatus: true,
@@ -131,8 +131,8 @@ const getProviderDetail = async (profileId: string) => {
 
   return {
     ...profile,
-    mealCount:    profile.meals.length,
-    orderCount:   profile.orders.length,
+    mealCount: profile.meals.length,
+    orderCount: profile.orders.length,
     paymentCount: profile.payments.length,
   };
 };
@@ -147,11 +147,11 @@ const approveProvider = async (profileId: string, adminId: string) => {
     },
   });
 
-  if (!profile)             throw new NotFoundError("Provider profile not found.");
-  if (profile.user.isDeleted)              throw new ForbiddenError("This provider account has been deleted.");
+  if (!profile) throw new NotFoundError("Provider profile not found.");
+  if (profile.user.isDeleted) throw new ForbiddenError("This provider account has been deleted.");
   if (profile.user.status === "SUSPENDED") throw new ForbiddenError("This provider account is suspended.");
   if (profile.approvalStatus === "APPROVED") throw new ConflictError("Provider is already approved.");
-  if (profile.approvalStatus !== "PENDING")  throw new BadRequestError("Only PENDING profiles can be approved.");
+  if (profile.approvalStatus !== "PENDING") throw new BadRequestError("Only PENDING profiles can be approved.");
 
   const updated = await prisma.providerProfile.update({
     where: { id: profileId },
@@ -181,10 +181,10 @@ const rejectProvider = async (
     },
   });
 
-  if (!profile)                            throw new NotFoundError("Provider profile not found.");
-  if (profile.user.isDeleted)              throw new ForbiddenError("This provider account has been deleted.");
+  if (!profile) throw new NotFoundError("Provider profile not found.");
+  if (profile.user.isDeleted) throw new ForbiddenError("This provider account has been deleted.");
   if (profile.approvalStatus === "REJECTED") throw new ConflictError("Provider is already rejected.");
-  if (profile.approvalStatus !== "PENDING")  throw new BadRequestError("Only PENDING profiles can be rejected.");
+  if (profile.approvalStatus !== "PENDING") throw new BadRequestError("Only PENDING profiles can be rejected.");
 
   const updated = await prisma.providerProfile.update({
     where: { id: profileId },
@@ -214,7 +214,7 @@ const updateProviderStatus = async (
     },
   });
 
-  if (!profile)             throw new NotFoundError("Provider profile not found.");
+  if (!profile) throw new NotFoundError("Provider profile not found.");
   if (profile.user.isDeleted) throw new ForbiddenError("This provider account has been deleted.");
 
   const { approvalStatus, userStatus, rejectionReason } = payload;
@@ -259,11 +259,11 @@ const getAllUsers = async (query: TUserListQuery) => {
   const where: Prisma.UserWhereInput = {
     isDeleted: false,
     NOT: { role: "SUPER_ADMIN" as const },
-    ...(role   && { role   }),
+    ...(role && { role }),
     ...(status && { status }),
     ...(search && {
       OR: [
-        { name:  { contains: search, mode: "insensitive" as const } },
+        { name: { contains: search, mode: "insensitive" as const } },
         { email: { contains: search, mode: "insensitive" as const } },
       ],
     }),
@@ -312,7 +312,7 @@ const suspendUser = async (targetUserId: string, adminId: string, reason?: strin
     select: { id: true, role: true, status: true, isDeleted: true },
   });
 
-  if (!user)          throw new NotFoundError("User not found.");
+  if (!user) throw new NotFoundError("User not found.");
   if (user.isDeleted) throw new ForbiddenError("Account has been deleted.");
   if (user.status === "SUSPENDED") throw new ConflictError("User is already suspended.");
   if (["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
@@ -332,7 +332,7 @@ const reactivateUser = async (targetUserId: string, adminId: string) => {
     select: { id: true, role: true, status: true, isDeleted: true },
   });
 
-  if (!user)          throw new NotFoundError("User not found.");
+  if (!user) throw new NotFoundError("User not found.");
   if (user.isDeleted) throw new ForbiddenError("Account has been deleted.");
   if (user.status === "ACTIVE") throw new ConflictError("User is already active.");
 
@@ -349,7 +349,7 @@ const toggleUserStatus = async (userId: string, adminId: string) => {
     select: { id: true, status: true, role: true, isDeleted: true },
   });
 
-  if (!user)          throw new NotFoundError("User not found.");
+  if (!user) throw new NotFoundError("User not found.");
   if (user.isDeleted) throw new ForbiddenError("Account has been deleted.");
   if (["ADMIN", "SUPER_ADMIN"].includes(user.role)) {
     throw new ForbiddenError("Admin accounts cannot be toggled through this endpoint.");
@@ -510,9 +510,9 @@ const getAllOrders = async (query: TOrderListQuery) => {
     ...(search && {
       OR: [
         { orderNumber: { contains: search, mode: "insensitive" } },
-        { provider:  { businessName: { contains: search, mode: "insensitive" } } },
-        { customer:  { name:         { contains: search, mode: "insensitive" } } },
-        { customer:  { email:        { contains: search, mode: "insensitive" } } },
+        { provider: { businessName: { contains: search, mode: "insensitive" } } },
+        { customer: { name: { contains: search, mode: "insensitive" } } },
+        { customer: { email: { contains: search, mode: "insensitive" } } },
       ],
     }),
   };
@@ -571,10 +571,10 @@ const getAllPayments = async (query: TPaymentListQuery) => {
     ...(search && {
       OR: [
         { transactionId: { contains: search, mode: "insensitive" } },
-        { gatewayName:   { contains: search, mode: "insensitive" } },
+        { gatewayName: { contains: search, mode: "insensitive" } },
         { provider: { businessName: { contains: search, mode: "insensitive" } } },
-        { customer: { name:         { contains: search, mode: "insensitive" } } },
-        { customer: { email:        { contains: search, mode: "insensitive" } } },
+        { customer: { name: { contains: search, mode: "insensitive" } } },
+        { customer: { email: { contains: search, mode: "insensitive" } } },
       ],
     }),
   };
@@ -663,15 +663,15 @@ const markPaymentAsProviderPaid = async (
       where: { id: paymentId },
       data: {
         providerSettlementStatus: "PAID",
-        providerSettledAt:        new Date(),
-        providerSettledBy:        adminId,
-        providerSettlementNote:   note ?? null,
+        providerSettledAt: new Date(),
+        providerSettledBy: adminId,
+        providerSettlementNote: note ?? null,
       },
     });
 
     await tx.providerProfile.update({
       where: { id: payment.providerId },
-      data: { currentPayableAmount: { decrement: payment.providerShareAmount } },
+      data: { currentPayableAmount: { decrement: payment.providerShareAmount }, lastPaymentAt: new Date() },
     });
 
     return updated;
@@ -705,9 +705,9 @@ const bulkSettleProvider = async (
       where: { providerId, status: "SUCCESS", providerSettlementStatus: "PENDING" },
       data: {
         providerSettlementStatus: "PAID",
-        providerSettledAt:        new Date(),
-        providerSettledBy:        adminId,
-        providerSettlementNote:   note ?? null,
+        providerSettledAt: new Date(),
+        providerSettledBy: adminId,
+        providerSettlementNote: note ?? null,
       },
     });
 
