@@ -11,6 +11,7 @@ import envConfig from './config/index.js';
 
 const app: Application = express();
 
+app.use(cookieParser());
 app.use(cors({
   origin: [envConfig.frontend_local_host].filter(Boolean),
   credentials: true,
@@ -24,7 +25,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // parsers
-app.use(cookieParser());
+
 
 // application routes
 app.use("/api/v1", IndexRoutes);

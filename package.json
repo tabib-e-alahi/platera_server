@@ -6,15 +6,13 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "npx tsx watch src/server.ts",
-    "build": "tsc",
     "start": "node dist/server.js",
-    "studio": "prisma studio",
-    "push": "prisma db push",
-    "pull": "prisma db pull",
     "seed:admins": "tsx src/scripts/seedAdmins.ts",
     "seed:categories": "tsx src/scripts/seedCategories.ts",
     "clean": "rm -rf node_modules/.cache",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:vercel": "prisma generate && tsup --config tsup.config.ts",
+    "postinstall": "prisma generate && pnpm run build:vercel"
   },
   "keywords": [],
   "author": "",
@@ -50,6 +48,7 @@
     "@types/nodemailer": "^8.0.0",
     "@types/pg": "^8.20.0",
     "prisma": "^7.6.0",
+    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   }
