@@ -145,7 +145,6 @@ const getPaymentStatus = async (
 // };
 
 
-//! ================ New Added ==================================
 const handleSuccess = async (req: Request, res: Response) => {
   const result = await PaymentService.handleSuccess(req.body);
 

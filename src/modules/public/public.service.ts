@@ -1,9 +1,5 @@
-// src/modules/public/public.service.ts — COMPLETE REPLACEMENT
-
 import { Prisma } from "../../../generated/prisma/client";
 import { prisma } from "../../lib/prisma";
-
-/* ── Categories ──────────────────────────────────────────────────────────── */
 
 const getCategories = async () => {
   return prisma.category.findMany({
@@ -12,7 +8,6 @@ const getCategories = async () => {
   });
 };
 
-/* ── Restaurants (paginated) ─────────────────────────────────────────────── */
 
 const getRestaurants = async (filters: {
   search?: string;
@@ -68,7 +63,6 @@ const getRestaurants = async (filters: {
         totalOrdersCompleted: true,
         createdAt: true,
         _count: { select: { meals: true, reviews: true } },
-        reviews: { select: { rating: true }, take: 1000 },
         meals: {
           where: { isActive: true, isAvailable: true },
           select: { subcategory: true, categoryId: true },
@@ -79,12 +73,26 @@ const getRestaurants = async (filters: {
     prisma.providerProfile.count({ where }),
   ]);
 
+  // Compute average ratings for all returned providers in ONE query (SQL AVG/GROUP BY)
+  // instead of pulling individual rating rows per restaurant into memory.
+  // This is both accurate for any review count and far more efficient.
+  const providerIds = restaurants.map((r) => r.id);
+  const ratingAggregates = await prisma.review.groupBy({
+    by: ["providerId"],
+    where: { providerId: { in: providerIds } },
+    _avg: { rating: true },
+    _count: { rating: true },
+  });
+  const ratingMap = new Map(
+    ratingAggregates.map((a) => [
+      a.providerId,
+      { avg: a._avg.rating ?? 0, count: a._count.rating },
+    ])
+  );
+
   const enriched = restaurants.map((r) => {
-    const ratings = r.reviews.map((rv) => rv.rating);
-    const avgRating =
-      ratings.length > 0
-        ? Math.round((ratings.reduce((a, b) => a + b, 0) / ratings.length) * 10) / 10
-        : 0;
+    const ratingInfo   = ratingMap.get(r.id) ?? { avg: 0, count: 0 };
+    const avgRating    = Math.round(ratingInfo.avg * 10) / 10;
     const subcategories = [...new Set(r.meals.map((m) => m.subcategory).filter(Boolean))];
     return {
       id: r.id,
@@ -95,7 +103,7 @@ const getRestaurants = async (filters: {
       city: r.city,
       street: r.street,
       totalOrdersCompleted: r.totalOrdersCompleted,
-      reviewCount: ratings.length,
+      reviewCount: ratingInfo.count,
       mealCount: r._count.meals,
       avgRating,
       subcategories,
@@ -107,8 +115,6 @@ const getRestaurants = async (filters: {
     meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
   };
 };
-
-/* ── Single restaurant ───────────────────────────────────────────────────── */
 
 const getRestaurantById = async (
   restaurantId: string,
@@ -227,7 +233,6 @@ const getRestaurantById = async (
   };
 };
 
-/* ── Featured restaurants (homepage) ────────────────────────────────────── */
 
 const getFeaturedRestaurants = async () => {
   const restaurants = await prisma.providerProfile.findMany({
@@ -275,18 +280,7 @@ const getFeaturedRestaurants = async () => {
   });
 };
 
-/* ── Top dishes (homepage "Signature Collection") ────────────────────────── *
- * Logic:
- *   1. Prefer isFeatured = true OR isBestseller = true meals
- *   2. From approved, active providers only
- *   3. Sort by total orderItem count descending (most ordered = top)
- *   4. Include avg rating + review count from the provider's reviews
- *      filtered to this meal's mealId
- *   5. Limit to `limit` (default 9) for 3×3 grid
- * ─────────────────────────────────────────────────────────────────────────── */
-
 const getTopDishes = async (limit = 9) => {
-  // Step 1: fetch candidates — featured or bestseller meals from approved providers
   const meals = await prisma.meal.findMany({
     where: {
       isActive: true,
@@ -324,14 +318,12 @@ const getTopDishes = async (limit = 9) => {
       _count: { select: { orderItems: true } },
     },
     orderBy: [
-      // isFeatured first, then isBestseller
       { isFeatured: "desc" },
       { isBestseller: "desc" },
     ],
-    take: limit * 3, // fetch more, then sort in JS by orderCount
+    take: limit * 3, 
   });
 
-  // Step 2: enrich with avg rating and sort by order count
   const enriched = meals
     .map((m) => {
       const ratings = m.reviews.map((r) => r.rating);
@@ -362,10 +354,9 @@ const getTopDishes = async (limit = 9) => {
         provider: m.provider,
       };
     })
-    .sort((a, b) => b.orderCount - a.orderCount)  // most ordered first
+    .sort((a, b) => b.orderCount - a.orderCount) 
     .slice(0, limit);
 
-  // Step 3: if not enough featured/bestseller meals, backfill with most ordered
   if (enriched.length < limit) {
     const existingIds = new Set(enriched.map((m) => m.id));
     const backfill = await prisma.meal.findMany({
@@ -434,15 +425,6 @@ const getTopDishes = async (limit = 9) => {
   return enriched;
 };
 
-/* ── Homepage testimonials ───────────────────────────────────────────────── *
- * Logic:
- *   - Reviews with rating >= 4 AND non-empty feedback
- *   - From approved providers only
- *   - Order by rating desc, then createdAt desc (newest 5-stars first)
- *   - Include meal name and provider name for context
- *   - Deduplicate by user (one review per user shown)
- * ─────────────────────────────────────────────────────────────────────────── */
-
 const getHomeTestimonials = async (limit = 9) => {
   const reviews = await prisma.review.findMany({
     where: {
@@ -457,7 +439,7 @@ const getHomeTestimonials = async (limit = 9) => {
       rating: true,
       feedback: true,
       createdAt: true,
-      user: { select: { name: true, image: true } },
+      user: { select: { id:true,name: true, image: true } },
       meal: { select: { name: true } },
       provider: { select: { businessName: true, city: true } },
     },
@@ -467,7 +449,7 @@ const getHomeTestimonials = async (limit = 9) => {
   const seen = new Set<string>();
   const deduped = reviews.filter((r) => {
     // Use user name as proxy since userId isn't in the select
-    const key = r.user.name;
+    const key = r.user.id;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
@@ -487,6 +469,44 @@ const getHomeTestimonials = async (limit = 9) => {
   }));
 };
 
+const getHeroStats = async () => {
+  const [restaurantCount, cuisines, happyFoodies, ratingAggregate] =
+    await Promise.all([
+      // 1. Active, approved provider profiles
+      prisma.providerProfile.count({
+        where: { approvalStatus: "APPROVED", isActive: true },
+      }),
+
+      // 2. Distinct cuisine / business-category values in use
+      prisma.providerProfile.findMany({
+        where: { approvalStatus: "APPROVED", isActive: true },
+        select: { businessCategory: true },
+        distinct: ["businessCategory"],
+      }),
+
+      // 3. Unique customers who have at least one delivered order
+      prisma.order.findMany({
+        where: { status: "DELIVERED" },
+        select: { customerId: true },
+        distinct: ["customerId"],
+      }),
+
+      // 4. Platform-wide average rating (single SQL AVG)
+      prisma.review.aggregate({ _avg: { rating: true } }),
+    ]);
+
+  const averageRating = ratingAggregate._avg.rating
+    ? Math.round(ratingAggregate._avg.rating * 10) / 10
+    : 0;
+
+  return {
+    restaurantCount,
+    cuisineCount:       cuisines.length,
+    happyFoodiesCount:  happyFoodies.length,
+    averageRating,
+  };
+};
+
 export const PublicService = {
   getCategories,
   getRestaurants,
@@ -494,4 +514,5 @@ export const PublicService = {
   getFeaturedRestaurants,
   getTopDishes,
   getHomeTestimonials,
+  getHeroStats
 };

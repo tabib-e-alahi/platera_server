@@ -20,6 +20,8 @@ const authMiddleware = (...roles: UserRole[]) => {
         headers: req.headers as unknown as Headers,
       });
 
+      console.log("hellow:", session);
+
       if (!session?.user) {
         throw new UnauthorizedError(
           "You are not logged in. Please log in to continue."

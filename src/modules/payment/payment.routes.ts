@@ -27,7 +27,6 @@ router.get(
 //   PaymentController.handleIPNNotification
 // );
 
-//! ================== New added ==============================
 // Callbacks from SSLCommerz
 router.post("/sslcommerz/success", PaymentController.handleSuccess);
 router.post("/sslcommerz/fail", PaymentController.handleFail);

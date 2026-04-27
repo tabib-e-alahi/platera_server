@@ -1,5 +1,3 @@
-// src/modules/admin/admin.controller.ts
-
 import { Request, Response, NextFunction } from "express";
 import { AdminService } from "./admin.service";
 import {
@@ -16,7 +14,6 @@ import {
 import { sendResponse } from "../../utils/sendResponse";
 import status from "http-status";
 
-/* ─── Dashboard ──────────────────────────────────────────────────────────── */
 
 const getDashboardStats = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -25,7 +22,6 @@ const getDashboardStats = async (req: Request, res: Response, next: NextFunction
   } catch (e) { next(e); }
 };
 
-/* ─── Provider management ────────────────────────────────────────────────── */
 
 const getPendingProviders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -72,8 +68,6 @@ const updateProviderStatus = async (req: Request, res: Response, next: NextFunct
   } catch (e) { next(e); }
 };
 
-/* ─── User management ────────────────────────────────────────────────────── */
-
 const getAllUsers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
     const query = userListQuerySchema.parse(req.query);
@@ -111,7 +105,6 @@ const toggleUserStatus = async (req: Request, res: Response, next: NextFunction)
   } catch (e) { next(e); }
 };
 
-/* ─── Super admin ────────────────────────────────────────────────────────── */
 
 const getAllAdmins = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -127,7 +120,28 @@ const createAdmin = async (req: Request, res: Response, next: NextFunction): Pro
   } catch (e) { next(e); }
 };
 
-/* ─── Orders ─────────────────────────────────────────────────────────────── */
+const suspendAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AdminService.suspendAdmin(req.params.id as string, req.user.id);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Admin account suspended.", data: result });
+  } catch (e) { next(e); }
+};
+ 
+
+const reactivateAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const result = await AdminService.reactivateAdmin(req.params.id as string, req.user.id);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Admin account reactivated.", data: result });
+  } catch (e) { next(e); }
+};
+ 
+const deleteAdmin = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    await AdminService.deleteAdmin(req.params.id as string, req.user.id);
+    sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Admin account deleted." });
+  } catch (e) { next(e); }
+};
+
 
 const getAllOrders = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -144,7 +158,6 @@ const getOrderDetail = async (req: Request, res: Response, next: NextFunction): 
   } catch (e) { next(e); }
 };
 
-/* ─── Payments ───────────────────────────────────────────────────────────── */
 
 const getAllPayments = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -184,8 +197,6 @@ const bulkSettleProvider = async (req: Request, res: Response, next: NextFunctio
     sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Bulk settlement completed.", data: result });
   } catch (e) { next(e); }
 };
-
-/* ─── Categories ─────────────────────────────────────────────────────────── */
 
 const getAllCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
@@ -237,6 +248,9 @@ export const AdminController = {
   toggleUserStatus,
   getAllAdmins,
   createAdmin,
+  suspendAdmin,
+  reactivateAdmin,
+  deleteAdmin,
   getAllOrders,
   getOrderDetail,
   getAllPayments,

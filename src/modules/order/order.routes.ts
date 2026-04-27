@@ -10,9 +10,7 @@ import {
 
 const router = Router();
 
-/* ── Customer routes ──────────────────────────────────────────────────────── */
 
-// POST /orders/checkout-preview
 router.post(
   "/checkout-preview",
   authMiddleware(UserRole.CUSTOMER),
@@ -20,7 +18,6 @@ router.post(
   OrderController.getCheckoutPreview
 );
 
-// POST /orders
 router.post(
   "/",
   authMiddleware(UserRole.CUSTOMER),
@@ -56,23 +53,18 @@ router.patch(
   OrderController.cancelMyOrder
 );
 
-// GET /orders/:id  (full detail)
 router.get(
   "/:id",
   authMiddleware(UserRole.CUSTOMER),
   OrderController.getMyOrderDetail
 );
 
-/* ── Provider routes ──────────────────────────────────────────────────────── */
-
-// GET /orders/provider-orders?status=&page=&limit=
 router.get(
   "/provider/orders",
   authMiddleware(UserRole.PROVIDER),
   OrderController.getProviderOrders
 );
 
-// PATCH /orders/:id/provider-status
 router.patch(
   "/:id/provider-status",
   authMiddleware(UserRole.PROVIDER),

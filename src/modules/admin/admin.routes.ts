@@ -19,10 +19,7 @@ const router = Router();
 router.use(authMiddleware(UserRole.ADMIN, UserRole.SUPER_ADMIN));
 router.use(adminGuard);
 
-/* ─── Dashboard ──────────────────────────────────────────────────────────── */
 router.get("/dashboard", AdminController.getDashboardStats);
-
-/* ─── Provider management ────────────────────────────────────────────────── */
 router.get("/providers/pending", AdminController.getPendingProviders);
 router.get("/providers", AdminController.getAllProviders);
 router.get("/providers/:id", AdminController.getProviderDetail);
@@ -38,7 +35,6 @@ router.patch(
   AdminController.updateProviderStatus
 );
 
-/* ─── User management ────────────────────────────────────────────────────── */
 router.get("/users", AdminController.getAllUsers);
 router.get("/users/:id", AdminController.getUserDetail);
 router.patch(
@@ -49,7 +45,6 @@ router.patch(
 router.patch("/users/:id/reactivate", AdminController.reactivateUser);
 router.patch("/users/:id/toggle-status", AdminController.toggleUserStatus);
 
-/* ─── Super admin only ───────────────────────────────────────────────────── */
 router.get("/admins", superAdminGuard, AdminController.getAllAdmins);
 router.post(
   "/admins",
@@ -57,12 +52,14 @@ router.post(
   validateRequest(createAdminSchema),
   AdminController.createAdmin
 );
+router.patch("/admins/:id/suspend", superAdminGuard, AdminController.suspendAdmin);
+router.patch("/admins/:id/reactivate", superAdminGuard, AdminController.reactivateAdmin);
+router.delete("/admins/:id", superAdminGuard, AdminController.deleteAdmin);
 
-/* ─── Orders ─────────────────────────────────────────────────────────────── */
+
 router.get("/orders", AdminController.getAllOrders);
 router.get("/orders/:id", AdminController.getOrderDetail);
 
-/* ─── Payments ───────────────────────────────────────────────────────────── */
 router.get("/payments", AdminController.getAllPayments);
 router.get("/payments/:id", AdminController.getPaymentDetail);
 router.patch(
@@ -71,7 +68,7 @@ router.patch(
   AdminController.markPaymentAsProviderPaid
 );
 
-/* ─── Payables / Settlements ─────────────────────────────────────────────── */
+
 router.get("/payables/providers", AdminController.getProviderPayablesSummary);
 router.get("/settlements", AdminController.getAllPayments);          // alias
 router.patch(
@@ -81,11 +78,11 @@ router.patch(
 );
 router.patch("/settlements/bulk/:providerId", AdminController.bulkSettleProvider);
 
-/* ─── Categories ─────────────────────────────────────────────────────────── */
 router.get("/categories", AdminController.getAllCategories);
 router.post("/categories", AdminController.createCategory);
 router.patch("/categories/:id", AdminController.updateCategory);
 router.delete("/categories/:id", AdminController.deleteCategory);
 router.patch("/categories/:id/toggle", AdminController.toggleCategoryStatus);
+
 
 export const AdminRoutes: Router = router;

@@ -6,7 +6,7 @@ import { prisma } from "../../lib/prisma";
 import { randomUUID } from "crypto";
 import { orderEventBus } from "../order/order.event";
 
-const backendBaseUrl = envConfig.BACKEND_LOCAL_HOST;
+const backendBaseUrl = envConfig.BACKEND_PROD_HOST;
 const frontendBaseUrl = envConfig.NODE_ENV === 'production' ? envConfig.frontend_production_host : envConfig.frontend_local_host;
 
 
@@ -29,14 +29,28 @@ const validateSSLPayment = async (val_id: string) => {
   return response.data;
 };
 
+// Single source of truth for the platform fee rate.
+// Used only when creating a payment record (initiateSSLPayment).
+// During finalization we always read platformFeePercent from the DB record
+// so the stored value and the applied rate can never silently diverge.
+const PLATFORM_FEE_RATE = 0.25;
+
 const finalizeSuccessPayment = async (payment: any, validation: any) => {
-  if (payment.status === "SUCCESS") return;
-
-  const amount = Number(payment.amount);
-  const platformFeeAmount = amount * 0.25;
-  const providerShareAmount = amount * 0.75;
-
   await prisma.$transaction(async (tx) => {
+    // Atomic guard: only process if status is still PENDING/FAILED.
+    // Using an updateMany with a conditional WHERE means two concurrent
+    // requests (SSL success callback + IPN) can never both proceed —
+    // the second one will see count=0 and return early, preventing
+    // double-crediting of provider revenue.
+    const guard = await tx.payment.updateMany({
+      where: { id: payment.id, status: { not: "SUCCESS" } },
+      data: { status: "SUCCESS" },
+    });
+
+    if (guard.count === 0) return; // already processed — bail out safely
+
+    // Re-fetch to get the authoritative platformFeePercent stored at
+    // payment creation time, so rate changes are always consistent.
     const paymentRecord = await tx.payment.findUnique({
       where: { id: payment.id },
     });
@@ -45,12 +59,17 @@ const finalizeSuccessPayment = async (payment: any, validation: any) => {
       throw new AppError("Payment not found.", status.NOT_FOUND);
     }
 
-    if (paymentRecord.status === "SUCCESS") return;
+    const amount = Number(paymentRecord.amount);
+    // Read the stored fee percentage — never hardcode 0.25 here
+    const feeRate = Number(paymentRecord.platformFeePercent) / 100;
+    const platformFeeAmount = amount * feeRate;
+    const providerShareAmount = amount * (1 - feeRate);
 
+    // Status already set to SUCCESS by the atomic guard above.
+    // Store the remaining finalization fields.
     await tx.payment.update({
       where: { id: payment.id },
       data: {
-        status: "SUCCESS",
         paidAt: new Date(),
         paymentGatewayData: validation,
         platformFeeAmount,
@@ -187,8 +206,8 @@ const initiateSSLPayment = async (userId: string, orderId: string) => {
   }
 
   const amount = Number(order.totalAmount);
-  const platformFeeAmount = amount * 0.25;
-  const providerShareAmount = amount * 0.75;
+  const platformFeeAmount = amount * PLATFORM_FEE_RATE;
+  const providerShareAmount = amount * (1 - PLATFORM_FEE_RATE);
 
   const transactionId = `PLATERA_${randomUUID()}`;
 

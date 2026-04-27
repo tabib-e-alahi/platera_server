@@ -61,7 +61,6 @@ export class UnprocessableError extends AppError {
   }
 }
 
-// src/errors/AppError.ts — add if not present
 
 export class InternalError extends AppError {
   constructor(message = "Internal server error.") {

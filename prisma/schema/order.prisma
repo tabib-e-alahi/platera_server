@@ -38,6 +38,7 @@ model Order {
   payments             Payment[]
   orderItems           OrderItem[]
   orderStatusHistories OrderStatusHistory[]
+  reviews              Review[]
 
   @@index([customerId])
   @@index([providerId])

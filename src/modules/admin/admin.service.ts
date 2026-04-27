@@ -22,7 +22,6 @@ import {
 } from "../../utils/emailTemplates.utils";
 import { Prisma } from "../../../generated/prisma/client";
 
-/* ─── Provider management ────────────────────────────────────────────────── */
 
 const getPendingProviders = async (query: TProviderListQuery) => {
   const { page, limit, search } = query;
@@ -250,7 +249,6 @@ const updateProviderStatus = async (
   return updated;
 };
 
-/* ─── User management ────────────────────────────────────────────────────── */
 
 const getAllUsers = async (query: TUserListQuery) => {
   const { page, limit, role, status, search } = query;
@@ -363,45 +361,6 @@ const toggleUserStatus = async (userId: string, adminId: string) => {
   });
 };
 
-/* ─── Super admin ────────────────────────────────────────────────────────── */
-
-const getAllAdmins = async () =>
-  prisma.user.findMany({
-    where: { role: { in: ["ADMIN", "SUPER_ADMIN"] }, isDeleted: false },
-    select: {
-      id: true, name: true, email: true, role: true,
-      status: true, emailVerified: true, createdAt: true,
-    },
-    orderBy: { createdAt: "asc" },
-  });
-
-const createAdmin = async (payload: TCreateAdmin, createdById: string) => {
-  const existing = await prisma.user.findUnique({
-    where: { email: payload.email },
-    select: { id: true, isDeleted: true },
-  });
-
-  if (existing) {
-    if (existing.isDeleted) throw new ForbiddenError("Email is associated with a deleted account.");
-    throw new ConflictError("An account with this email already exists.");
-  }
-
-  const result = await auth.api.signUpEmail({
-    body: { name: payload.name, email: payload.email, password: payload.password },
-    headers: new Headers({ "x-intended-role": "ADMIN" }),
-  });
-
-  if (!result.user) throw new BadRequestError("Failed to create admin account.");
-
-  await prisma.user.update({
-    where: { id: result.user.id },
-    data: { emailVerified: true },
-  });
-
-  return result.user;
-};
-
-/* ─── Dashboard stats ────────────────────────────────────────────────────── */
 
 const getDashboardStats = async () => {
   const [
@@ -499,7 +458,6 @@ const getDashboardStats = async () => {
   };
 };
 
-/* ─── Orders ─────────────────────────────────────────────────────────────── */
 
 const getAllOrders = async (query: TOrderListQuery) => {
   const { page, limit, search, status } = query;
@@ -558,8 +516,6 @@ const getOrderDetail = async (orderId: string) => {
   if (!order) throw new NotFoundError("Order not found.");
   return order;
 };
-
-/* ─── Payments / Settlements ─────────────────────────────────────────────── */
 
 const getAllPayments = async (query: TPaymentListQuery) => {
   const { page, limit, search, status, providerSettlementStatus } = query;
@@ -651,12 +607,23 @@ const markPaymentAsProviderPaid = async (
 ) => {
   const payment = await prisma.payment.findUnique({
     where: { id: paymentId },
-    include: { provider: true },
+    include: {
+      provider: true,
+      order: { select: { id: true, orderNumber: true, status: true } },
+    },
   });
 
   if (!payment) throw new NotFoundError("Payment not found.");
   if (payment.status !== "SUCCESS") throw new BadRequestError("Only successful payments can be settled.");
   if (payment.providerSettlementStatus === "PAID") throw new ConflictError("Payment already settled.");
+  const settleableOrderStatuses = ["DELIVERED"];
+  if (!settleableOrderStatuses.includes(payment.order?.status ?? "")) {
+    throw new BadRequestError(
+      `Cannot settle payment for order #${payment.order?.orderNumber} — ` +
+      `order must be DELIVERED before settlement. ` +
+      `Current status: ${payment.order?.status ?? "unknown"}.`
+    );
+  }
 
   return prisma.$transaction(async (tx) => {
     const updated = await tx.payment.update({
@@ -692,17 +659,32 @@ const bulkSettleProvider = async (
   if (Number(provider.currentPayableAmount) <= 0) throw new BadRequestError("Provider has no pending settlements.");
 
   const pending = await prisma.payment.findMany({
-    where: { providerId, status: "SUCCESS", providerSettlementStatus: "PENDING" },
+    where: {
+      providerId,
+      status: "SUCCESS",
+      providerSettlementStatus: "PENDING",
+      order: { status: "DELIVERED" },
+    },
     select: { id: true, providerShareAmount: true },
   });
 
-  if (pending.length === 0) throw new BadRequestError("No pending payments for this provider.");
+  if (pending.length === 0) {
+    throw new BadRequestError(
+      "No settleable payments found for this provider. " +
+      "Only payments linked to DELIVERED orders can be settled."
+    );
+  }
 
   const total = pending.reduce((s, p) => s + Number(p.providerShareAmount), 0);
 
   return prisma.$transaction(async (tx) => {
     await tx.payment.updateMany({
-      where: { providerId, status: "SUCCESS", providerSettlementStatus: "PENDING" },
+      where: {
+        providerId,
+        status: "SUCCESS",
+        providerSettlementStatus: "PENDING",
+        order: { status: "DELIVERED" },
+      },
       data: {
         providerSettlementStatus: "PAID",
         providerSettledAt: new Date(),
@@ -735,7 +717,6 @@ const bulkSettleProvider = async (
   });
 };
 
-/* ─── Categories ─────────────────────────────────────────────────────────── */
 
 const getAllCategories = async () =>
   prisma.category.findMany({
@@ -793,37 +774,147 @@ const toggleCategoryStatus = async (categoryId: string) => {
   });
 };
 
-/* ─── Export ─────────────────────────────────────────────────────────────── */
+
+// ─── Admin management (SUPER_ADMIN only) ─────────────────────────────────────
+
+const getAllAdmins = async () =>
+  prisma.user.findMany({
+    where: { role: { in: ["ADMIN", "SUPER_ADMIN"] }, isDeleted: false },
+    select: {
+      id: true, name: true, email: true, role: true,
+      status: true, emailVerified: true, createdAt: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+
+const createAdmin = async (payload: TCreateAdmin, createdById: string) => {
+  const existing = await prisma.user.findUnique({
+    where: { email: payload.email },
+    select: { id: true, isDeleted: true },
+  });
+
+  if (existing) {
+    if (existing.isDeleted) throw new ForbiddenError("Email is associated with a deleted account.");
+    throw new ConflictError("An account with this email already exists.");
+  }
+
+  const result = await auth.api.signUpEmail({
+    body: { name: payload.name, email: payload.email, password: payload.password },
+    headers: new Headers({ "x-intended-role": "ADMIN" }),
+  });
+
+  if (!result.user) throw new BadRequestError("Failed to create admin account.");
+
+  await prisma.user.update({
+    where: { id: result.user.id },
+    data: { emailVerified: true },
+  });
+
+  return result.user;
+};
+
+/**
+ * Suspend an ADMIN account. Cannot suspend SUPER_ADMIN accounts.
+ * Only callable by SUPER_ADMIN (enforced at route level via superAdminGuard).
+ */
+const suspendAdmin = async (targetAdminId: string, requesterId: string) => {
+  const target = await prisma.user.findUnique({
+    where: { id: targetAdminId },
+    select: { id: true, role: true, status: true, isDeleted: true },
+  });
+
+  if (!target) throw new NotFoundError("Admin account not found.");
+  if (target.isDeleted) throw new ForbiddenError("This account has been deleted.");
+  if (target.role === "SUPER_ADMIN") throw new ForbiddenError("Super admin accounts cannot be suspended.");
+  if (target.role !== "ADMIN") throw new ForbiddenError("Target account is not an admin.");
+  if (target.status === "SUSPENDED") throw new ConflictError("Admin is already suspended.");
+
+  return prisma.user.update({
+    where: { id: targetAdminId },
+    data: { status: "SUSPENDED" },
+    select: { id: true, name: true, email: true, role: true, status: true },
+  });
+};
+
+/**
+ * Reactivate a suspended ADMIN account.
+ * Only callable by SUPER_ADMIN (enforced at route level).
+ */
+const reactivateAdmin = async (targetAdminId: string, requesterId: string) => {
+  const target = await prisma.user.findUnique({
+    where: { id: targetAdminId },
+    select: { id: true, role: true, status: true, isDeleted: true },
+  });
+
+  if (!target) throw new NotFoundError("Admin account not found.");
+  if (target.isDeleted) throw new ForbiddenError("This account has been deleted.");
+  if (target.role !== "ADMIN") throw new ForbiddenError("Target account is not an admin.");
+  if (target.status === "ACTIVE") throw new ConflictError("Admin is already active.");
+
+  return prisma.user.update({
+    where: { id: targetAdminId },
+    data: { status: "ACTIVE" },
+    select: { id: true, name: true, email: true, role: true, status: true },
+  });
+};
+
+/**
+ * Soft-delete an ADMIN account. Cannot delete SUPER_ADMIN accounts.
+ * All sessions are invalidated automatically via CASCADE on the Session model.
+ * Only callable by SUPER_ADMIN.
+ */
+const deleteAdmin = async (targetAdminId: string, requesterId: string) => {
+  if (targetAdminId === requesterId) {
+    throw new ForbiddenError("You cannot delete your own account.");
+  }
+
+  const target = await prisma.user.findUnique({
+    where: { id: targetAdminId },
+    select: { id: true, role: true, isDeleted: true },
+  });
+
+  if (!target) throw new NotFoundError("Admin account not found.");
+  if (target.isDeleted) throw new ConflictError("Account has already been deleted.");
+  if (target.role === "SUPER_ADMIN") throw new ForbiddenError("Super admin accounts cannot be deleted.");
+  if (target.role !== "ADMIN") throw new ForbiddenError("Target account is not an admin.");
+
+  // Invalidate all active sessions first
+  await prisma.session.deleteMany({ where: { userId: targetAdminId } });
+
+  // Soft-delete the user record
+  await prisma.user.update({
+    where: { id: targetAdminId },
+    data: { isDeleted: true, deletedAt: new Date(), status: "SUSPENDED" },
+  });
+};
+
 
 export const AdminService = {
-  // providers
   getPendingProviders,
   getAllProviders,
   getProviderDetail,
   approveProvider,
   rejectProvider,
   updateProviderStatus,
-  // users
   getAllUsers,
   getUserDetail,
   suspendUser,
   reactivateUser,
   toggleUserStatus,
-  // super admin
   getAllAdmins,
   createAdmin,
-  // dashboard
+  suspendAdmin,     
+  reactivateAdmin,
+  deleteAdmin,
   getDashboardStats,
-  // orders
   getAllOrders,
   getOrderDetail,
-  // payments/settlements
   getAllPayments,
   getPaymentDetail,
   getProviderPayablesSummary,
   markPaymentAsProviderPaid,
   bulkSettleProvider,
-  // categories
   getAllCategories,
   createCategory,
   updateCategory,

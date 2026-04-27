@@ -17,6 +17,7 @@ model Payment {
   refundedAt               DateTime?
   createdAt                DateTime                 @default(now())
   updatedAt                DateTime                 @updatedAt
+  cancelledAt              DateTime?
   providerSettledAt        DateTime?
   providerSettledBy        String?
   providerSettlementNote   String?

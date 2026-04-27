@@ -1,17 +1,43 @@
+// src/lib/auth.ts
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
 import { userAccountStatus, UserRole } from "../../generated/prisma/enums";
 import envConfig from "../config";
-import { emailOTP } from "better-auth/plugins";
+import { emailOTP, oAuthProxy } from "better-auth/plugins";
 import { sendEmailVerificationOTP } from "../utils/emailTemplates.utils";
 
+
 export const auth = betterAuth({
-    baseURL: envConfig.BETTER_AUTH_URL,
-    basePath: "/api/auth",
     database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
+    baseURL: envConfig.frontend_production_host,
+    secret: envConfig.BETTER_AUTH_SECRET,
+
+    advanced: {
+        cookies: {
+            session_token: {
+                name: "session_token", // Force this exact name
+                attributes: {
+                    httpOnly: true,
+                    secure: true,
+                    sameSite: "none",
+                    partitioned: true,
+                },
+            },
+            state: {
+                name: "session_token", // Force this exact name
+                attributes: {
+                    httpOnly: true,
+                    secure: true,
+                    sameSite: "none",
+                    partitioned: true,
+                },
+            },
+        },
+    },
+
     session: {
         expiresIn: 60 * 60 * 24 * 7,
         updateAge: 60 * 60 * 24,
@@ -20,33 +46,55 @@ export const auth = betterAuth({
             maxAge: 60 * 5,
         },
     },
+
     emailAndPassword: {
         enabled: true,
         requireEmailVerification: true,
     },
+
+    socialProviders: {
+        google: {
+            clientId: envConfig.GOOGLE_CLIENT_ID,
+            clientSecret: envConfig.GOOGLE_CLIENT_SECRET,
+            prompt: "select_account consent",
+            mapProfileToUser: () => ({
+                role: UserRole.CUSTOMER,
+                status: userAccountStatus.ACTIVE,
+                isDeleted: false,
+                needPasswordChange: false,
+                emailVerified: true,
+            }),
+        },
+    },
+
     emailVerification: {
         sendOnSignUp: true,
         sendOnSignIn: true,
         autoSignInAfterVerification: true,
     },
+
     trustedOrigins: [
         envConfig.frontend_local_host,
-        "http://localhost:5000",
+        envConfig.frontend_production_host,
+        envConfig.BACKEND_PROD_HOST,
+        envConfig.BETTER_AUTH_URL,
         "http://localhost:3000",
-    ],
+        "http://localhost:5000",
+    ].filter(Boolean),
+
     user: {
         additionalFields: {
             role: {
                 type: "string",
                 required: true,
                 defaultValue: UserRole.CUSTOMER,
-                input: false, // never accept from client, I will set it in the code
+                input: false,
             },
             status: {
                 type: "string",
                 required: true,
                 defaultValue: userAccountStatus.ACTIVE,
-                input: false,   // never accept from client, I will set it in the code
+                input: false,
             },
             phone: {
                 type: "string",
@@ -67,9 +115,8 @@ export const auth = betterAuth({
                 type: "date",
                 required: false,
                 defaultValue: null,
-            }
-
-        }
+            },
+        },
     },
 
     plugins: [
@@ -77,20 +124,15 @@ export const auth = betterAuth({
             overrideDefaultEmailVerification: true,
             async sendVerificationOTP({ email, otp, type }) {
                 if (type === "email-verification") {
-                    const user = await prisma.user.findUnique({
-                        where: {
-                            email
-                        }
-                    })
+                    const user = await prisma.user.findUnique({ where: { email } });
                     if (user && !user.emailVerified) {
-                        const name = user.name
-                        await sendEmailVerificationOTP(name, email, otp);
+                        await sendEmailVerificationOTP(user.name, email, otp);
                     }
-
                 }
             },
-            expiresIn: 2 * 60
-        })
+            expiresIn: 2 * 60,
+        }),
+        oAuthProxy()
     ],
 
     databaseHooks: {
@@ -99,16 +141,11 @@ export const auth = betterAuth({
                 before: async (user, context) => {
                     const intendedRole =
                         context?.headers?.get("x-intended-role") || "CUSTOMER";
-
                     return {
-                        data: {
-                            ...user,
-                            role: intendedRole,
-                        },
+                        data: { ...user, role: intendedRole },
                     };
                 },
             },
-
         },
     },
 });

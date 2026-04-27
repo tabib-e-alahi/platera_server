@@ -10,22 +10,32 @@ import { CustomerRoutes } from "../modules/customer/customer.routes";
 import { CartRoutes } from "../modules/cart/cart.routes";
 import { OrderRoutes } from "../modules/order/order.routes";
 import { PaymentRoutes } from "../modules/payment/payment.routes";
+import { ReviewRoutes } from "../modules/reviews/review.routes";
+import { SupportAdminRoutes, SupportPublicRoutes } from "../modules/support/support.routes";
 
 
 const router = Router()
 
-//* /api/v1/... */
 router.use("/auth", AuthRoutes);
-router.use("/public", PublicRoutes);
-router.use("/customers", CustomerRoutes);
 
+router.use("/public", PublicRoutes);
+router.use("/support", SupportPublicRoutes);
+
+router.use("/customers", CustomerRoutes);
 router.use("/cart", CartRoutes);
 router.use("/orders", OrderRoutes);
 router.use("/payments", PaymentRoutes);
+router.use("/reviews",  ReviewRoutes);
 
 router.use("/provider/meals", MealRoutes)
 router.use("/providers", ProviderRoutes)
 
 router.use("/admins", authMiddleware(UserRole.ADMIN, UserRole.SUPER_ADMIN), adminGuard, AdminRoutes)
+router.use(
+  "/admins/support",
+  authMiddleware(UserRole.ADMIN, UserRole.SUPER_ADMIN),
+  adminGuard,
+  SupportAdminRoutes
+);
 
 export const IndexRoutes: Router = router

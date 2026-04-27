@@ -12,8 +12,6 @@ import { getProviderProfile } from "../../helpers/getProviderProfile";
 import { getMealOwnership } from "../../helpers/getMealOwnership";
 
 
-//* ─── Get my meals ─────────────────────────────────────────────────────────────
-
 const getMyMeals = async (
   userId: string,
   filters: {
@@ -83,7 +81,6 @@ const getMyMeals = async (
   };
 };
 
-//* ─── Get single meal ──────────────────────────────────────────────────────────
 
 const getMyMealById = async (
   mealId: string,
@@ -110,7 +107,6 @@ const getMyMealById = async (
   return meal;
 };
 
-//* ─── Create meal ──────────────────────────────────────────────────────────────
 
 const createMeal = async (
   userId: string,
@@ -242,7 +238,7 @@ const createMeal = async (
   });
 };
 
-//* ─── Update meal ──────────────────────────────────────────────────────────────
+
 
 const updateMeal = async (
   mealId: string,
@@ -252,7 +248,6 @@ const updateMeal = async (
 ) => {
   const profile = await getProviderProfile(userId);
 
-  // verify category if being changed
   if (payload.categoryId) {
     const category = await prisma.category.findUnique({
       where: { id: payload.categoryId, isActive: true },

@@ -10,9 +10,6 @@ interface SlackErrorPayload {
   method?: string;
 }
 
-/**
- * Log errors to Slack (can be integrated with Slack webhook)
- */
 export const sendToSlack = async (payload: SlackErrorPayload): Promise<void> => {
   try {
     const slackWebhookUrl = envConfig.SLACK_WEBHOOK_URL;
@@ -72,9 +69,6 @@ export const sendToSlack = async (payload: SlackErrorPayload): Promise<void> => 
   }
 };
 
-/**
- * Log error to console in development
- */
 export const logErrorToConsole = (
   error: any,
   isDevelopment: boolean,

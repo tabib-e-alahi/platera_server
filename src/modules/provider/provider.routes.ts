@@ -29,7 +29,6 @@ router.get(
   ProviderController.getDashboardStats
 );
 
-//* create provider profile
 router.post(
   "/profile",
   authMiddleware(UserRole.PROVIDER),

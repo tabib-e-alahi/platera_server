@@ -1,5 +1,3 @@
-// src/modules/auth/auth.controller.ts
-
 import { Request, Response, NextFunction } from "express";
 import { AuthService } from "./auth.service";
 import { ILoginData } from "../../types/auth.type";
@@ -7,10 +5,12 @@ import { sendResponse } from "../../utils/sendResponse";
 import status from "http-status";
 import { auth } from "../../lib/auth";
 
-//* get current user data
 const getMe = async (req: Request, res: Response, next: NextFunction) => {
+  console.log("Hittted from geME");
   try {
+    console.log("Hittted from geME ");
     const userId = req.user.id;
+    console.log(userId);
     const result = await AuthService.getMe(userId);
 
     return sendResponse(res, {
@@ -33,6 +33,8 @@ const sessionCheck = async (
     const session = await auth.api.getSession({
       headers: req.headers as unknown as Headers,
     });
+
+    console.log("session check", session);
 
     if (!session?.user) {
       sendResponse(res, {
@@ -135,9 +137,9 @@ const loginUser = async (
       typeof result.headers.getSetCookie === "function"
         ? result.headers.getSetCookie()
         : (() => {
-            const single = result.headers.get("set-cookie");
-            return single ? [single] : [];
-          })();
+          const single = result.headers.get("set-cookie");
+          return single ? [single] : [];
+        })();
 
     for (const cookie of setCookies) {
       res.append("Set-Cookie", cookie);
@@ -148,7 +150,7 @@ const loginUser = async (
       success: true,
       message: "Login successful.",
       data: {
-        data:result.data,
+        data: result.data,
         hasProviderProfile: result.hasProviderProfile
       },
     });
@@ -199,6 +201,74 @@ const logout = async (req: Request, res: Response, next: NextFunction) => {
     next(error);
   }
 };
+
+// /api/v1/auth/login/google?redirect=/profile
+// const googleLogin = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const redirectPath = req.query.redirect || "/dashboard";
+
+//     const encodedRedirectPath = encodeURIComponent(redirectPath as string);
+
+//     const callbackURL = `${envConfig.BETTER_AUTH_URL}/api/v1/auth/google/success?redirect=${encodedRedirectPath}`;
+
+//     res.render("googleRedirect", {
+//       callbackURL: callbackURL,
+//       betterAuthUrl: envConfig.BETTER_AUTH_URL,
+//     })
+//   } catch (error) {
+//     next(error)
+//   }
+// }
+
+// const googleLoginSuccess = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const redirectPath = req.query.redirect as string || "/dashboard";
+
+//     const sessionToken = req.cookies["better-auth.session_token"];
+
+//     if (!sessionToken) {
+//       return res.redirect(`${envConfig.frontend_local_host}/login?error=oauth_failed`);
+//     }
+
+//     const session = await auth.api.getSession({
+//       headers: {
+//         "Cookie": `better-auth.session_token=${sessionToken}`
+//       }
+//     })
+
+//     if (!session) {
+//       return res.redirect(`${envConfig.frontend_local_host}/login?error=no_session_found`);
+//     }
+
+
+//     if (session && !session.user) {
+//       return res.redirect(`${envConfig.frontend_local_host}/login?error=no_user_found`);
+//     }
+
+//     const result = await AuthService.googleLoginSuccess(session);
+
+//     const { accessToken, refreshToken } = result;
+
+//     tokenUtils.setAccessTokenCookie(res, accessToken);
+//     tokenUtils.setRefreshTokenCookie(res, refreshToken);
+//     // ?redirect=//profile -> /profile
+//     const isValidRedirectPath = redirectPath.startsWith("/") && !redirectPath.startsWith("//");
+//     const finalRedirectPath = isValidRedirectPath ? redirectPath : "/dashboard";
+
+//     res.redirect(`${envConfig.frontend_local_host}${finalRedirectPath}`);
+//   } catch (error) {
+//     next(error)
+//   }
+// }
+
+// const handleOAuthError = async (req: Request, res: Response, next: NextFunction) => {
+//   try {
+//     const error = req.query.error as string || "oauth_failed";
+//     res.redirect(`${envConfig.frontend_local_host}/login?error=${error}`);
+//   } catch (error) {
+//     next(error)
+//   }
+// }
 
 export const AuthController = {
   registerCustomer,

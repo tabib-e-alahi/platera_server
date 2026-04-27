@@ -126,6 +126,24 @@ const getHomeTestimonials = async (req: Request, res: Response, next: NextFuncti
   }
 };
 
+const getHeroStats = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const result = await PublicService.getHeroStats();
+    res.set(
+      "Cache-Control",
+      "public, s-maxage=300, stale-while-revalidate=600"
+    );
+    sendResponse(res, {
+      httpStatusCode: status.OK,
+      success: true,
+      message: "Hero stats fetched successfully.",
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const PublicController = {
   getCategories,
   getRestaurants,
@@ -133,4 +151,5 @@ export const PublicController = {
   getFeaturedRestaurants,
   getTopDishes,
   getHomeTestimonials,
+  getHeroStats
 };

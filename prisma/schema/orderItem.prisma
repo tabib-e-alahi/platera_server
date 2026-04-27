@@ -3,8 +3,6 @@ model OrderItem {
 
   orderId        String
   mealId         String
-
-  // Snapshot fields (DO NOT depend on Meal later)
   mealName       String
   mealSlug       String?
   mealImageUrl   String?
@@ -16,7 +14,7 @@ model OrderItem {
 
   createdAt      DateTime @default(now())
 
-  // Relations
+
   order          Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   meal           Meal  @relation(fields: [mealId], references: [id])
 

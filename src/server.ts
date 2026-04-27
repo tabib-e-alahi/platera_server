@@ -1,14 +1,22 @@
-import app from './app';
-import envConfig from './config';
+import app from "./app";
+import envConfig from "./config";
+import { prisma } from "./lib/prisma";
 
-async function main() {
-  try {
-    app.listen(envConfig.port, () => {
-      console.log(`Example app listening on port ${envConfig.port}`);
-    });
-  } catch (err) {
-    console.log(err);
-  }
+const PORT = envConfig.port || 5000;
+
+async function server() {
+    try {
+        await prisma.$connect();
+        console.log("Connected to the database successfully.");
+
+        app.listen(PORT, () => {
+            console.log(`Server is running`);
+        });
+    } catch (error) {
+        console.error("An error occurred:", error);
+        await prisma.$disconnect();
+        process.exit(1);
+    }
 }
 
-main();
+server();

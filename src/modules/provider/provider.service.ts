@@ -510,7 +510,6 @@ const requestApproval = async (userId: string) => {
     );
   }
 
-  // set to PENDING and clear any previous rejection data
   const updatedProfile = await prisma.providerProfile.update({
     where: { userId },
     data: {
@@ -521,15 +520,6 @@ const requestApproval = async (userId: string) => {
     },
   });
 
-  //* for testing purposes, send email to a specific address instead of all admins
-  // sendAdminApprovalRequestEmail(
-  //   "etabib.alahi@gmail.com",
-  //   user.name,
-  //   profile.businessName,
-  //   profile.businessCategory
-  // )
-
-  // notify all active admins
   const admins = await prisma.user.findMany({
     where: {
       role: { in: ["ADMIN", "SUPER_ADMIN"] },
