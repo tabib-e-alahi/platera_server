@@ -78,7 +78,7 @@ router.patch(
 );
 router.patch("/settlements/bulk/:providerId", AdminController.bulkSettleProvider);
 
-router.get("/categories", AdminController.getAllCategories);
+router.get("/categories/all", AdminController.getAllCategories);
 router.post("/categories", AdminController.createCategory);
 router.patch("/categories/:id", AdminController.updateCategory);
 router.delete("/categories/:id", AdminController.deleteCategory);

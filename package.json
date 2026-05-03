@@ -9,6 +9,7 @@
     "start": "node dist/server.js",
     "seed:admins": "tsx src/scripts/seedAdmins.ts",
     "seed:categories": "tsx src/scripts/seedCategories.ts",
+    "seed:demo": "tsx src/scripts/seedDemoUsers.ts",
     "clean": "rm -rf node_modules/.cache",
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:vercel": "prisma generate && tsup --config tsup.config.ts",

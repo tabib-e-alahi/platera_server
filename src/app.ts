@@ -17,6 +17,7 @@ app.use(cors({
     envConfig.frontend_local_host,
     envConfig.frontend_production_host,
     envConfig.BETTER_AUTH_URL,
+    "http://localhost:3000"
   ].filter(Boolean),
   credentials: true,
 }));

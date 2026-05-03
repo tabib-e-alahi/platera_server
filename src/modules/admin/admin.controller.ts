@@ -200,6 +200,7 @@ const bulkSettleProvider = async (req: Request, res: Response, next: NextFunctio
 
 const getAllCategories = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
+    console.log("hit");
     const result = await AdminService.getAllCategories();
     sendResponse(res, { httpStatusCode: status.OK, success: true, message: "Categories fetched.", data: result });
   } catch (e) { next(e); }

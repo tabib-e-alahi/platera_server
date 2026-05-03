@@ -718,11 +718,15 @@ const bulkSettleProvider = async (
 };
 
 
-const getAllCategories = async () =>
-  prisma.category.findMany({
+const getAllCategories = async () => {
+  
+  const result = await prisma.category.findMany({
     orderBy: { displayOrder: "asc" },
     include: { _count: { select: { meals: true } } },
   });
+
+  return result;
+}
 
 const createCategory = async (payload: {
   name: string; slug: string; imageURL: string; displayOrder?: number;
@@ -904,7 +908,7 @@ export const AdminService = {
   toggleUserStatus,
   getAllAdmins,
   createAdmin,
-  suspendAdmin,     
+  suspendAdmin,
   reactivateAdmin,
   deleteAdmin,
   getDashboardStats,
