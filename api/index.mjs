@@ -1354,15 +1354,11 @@ var getMe2 = async (req, res, next) => {
   }
 };
 var sessionCheck2 = async (req, res, next) => {
-  console.log("Hitted from session check 1");
   try {
-    console.log("Hitted from session check 2");
     const session = await auth.api.getSession({
       headers: req.headers
     });
-    const sessionToken = req.cookies["__Secure-session_token"] || req.cookies["session_token"];
     console.log("session check", session);
-    console.log("session chec2", sessionToken);
     if (!session?.user) {
       sendResponse(res, {
         httpStatusCode: status2.OK,
@@ -2332,7 +2328,7 @@ var ProviderController = {
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 var ALLOWED_FORMATS = ["jpg", "jpeg", "png", "webp"];
-var MAX_FILE_SIZE = 5 * 1024 * 1024;
+var MAX_FILE_SIZE = 1 * 1024 * 1024;
 var providerProfileStorage = new CloudinaryStorage({
   cloudinary: claudinary_config_default,
   params: (req, file) => {
@@ -3296,10 +3292,13 @@ var bulkSettleProvider = async (providerId, adminId, note) => {
     };
   });
 };
-var getAllCategories = async () => prisma.category.findMany({
-  orderBy: { displayOrder: "asc" },
-  include: { _count: { select: { meals: true } } }
-});
+var getAllCategories = async () => {
+  const result = await prisma.category.findMany({
+    orderBy: { displayOrder: "asc" },
+    include: { _count: { select: { meals: true } } }
+  });
+  return result;
+};
 var createCategory = async (payload) => {
   const existing = await prisma.category.findFirst({
     where: { OR: [{ name: payload.name }, { slug: payload.slug }] },
@@ -3656,6 +3655,7 @@ var bulkSettleProvider2 = async (req, res, next) => {
 };
 var getAllCategories2 = async (req, res, next) => {
   try {
+    console.log("hit");
     const result = await AdminService.getAllCategories();
     sendResponse(res, { httpStatusCode: status4.OK, success: true, message: "Categories fetched.", data: result });
   } catch (e) {
@@ -3781,7 +3781,7 @@ router3.patch(
   AdminController.markPaymentAsProviderPaid
 );
 router3.patch("/settlements/bulk/:providerId", AdminController.bulkSettleProvider);
-router3.get("/categories", AdminController.getAllCategories);
+router3.get("/categories/all", AdminController.getAllCategories);
 router3.post("/categories", AdminController.createCategory);
 router3.patch("/categories/:id", AdminController.updateCategory);
 router3.delete("/categories/:id", AdminController.deleteCategory);
@@ -8006,7 +8006,8 @@ app.use(cors({
   origin: [
     config_default.frontend_local_host,
     config_default.frontend_production_host,
-    config_default.BETTER_AUTH_URL
+    config_default.BETTER_AUTH_URL,
+    "http://localhost:3000"
   ].filter(Boolean),
   credentials: true
 }));
